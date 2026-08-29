@@ -21,6 +21,7 @@ export async function telegramApi(env, method, data = {}) {
   return result.result;
 }
 
+
 export async function sendMessage(
   env,
   chatId,
@@ -38,11 +39,77 @@ export async function sendMessage(
     };
   }
 
-  return telegramApi(env, "sendMessage", data);
+  return telegramApi(
+    env,
+    "sendMessage",
+    data
+  );
 }
 
-export async function answerCallback(env, callbackId) {
-  return telegramApi(env, "answerCallbackQuery", {
+
+export async function editMessage(
+  env,
+  chatId,
+  messageId,
+  text,
+  inlineKeyboard = null
+) {
+  const data = {
+    chat_id: chatId,
+    message_id: messageId,
+    text,
+  };
+
+  if (inlineKeyboard) {
+    data.reply_markup = {
+      inline_keyboard: inlineKeyboard,
+    };
+  } else {
+    data.reply_markup = {
+      inline_keyboard: [],
+    };
+  }
+
+  return telegramApi(
+    env,
+    "editMessageText",
+    data
+  );
+}
+
+
+export async function deleteMessage(
+  env,
+  chatId,
+  messageId
+) {
+  return telegramApi(
+    env,
+    "deleteMessage",
+    {
+      chat_id: chatId,
+      message_id: messageId,
+    }
+  );
+}
+
+
+export async function answerCallback(
+  env,
+  callbackId,
+  text = null
+) {
+  const data = {
     callback_query_id: callbackId,
-  });
+  };
+
+  if (text) {
+    data.text = text;
+  }
+
+  return telegramApi(
+    env,
+    "answerCallbackQuery",
+    data
+  );
 }
