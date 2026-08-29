@@ -11,7 +11,11 @@ import {
 
 import {
   showChannelMenu,
+  showChannelDetail,
   startAddChannel,
+  startEditChannel,
+  confirmDeleteChannel,
+  deleteChannel,
   handleChannelInput,
 } from "./admin/channel.js";
 
@@ -103,11 +107,6 @@ async function handleMessage(
     return;
   }
 
-  /*
-   * /admin selalu diproses lebih dulu.
-   * State proses sebelumnya tidak boleh
-   * membuat /admin dianggap sebagai input.
-   */
   if (text === "/admin") {
     if (!(await isAdmin(env, chatId))) {
       await sendMessage(
@@ -144,10 +143,6 @@ async function handleMessage(
     return;
   }
 
-  /*
-   * Command lain juga tidak boleh
-   * tertelan oleh state input.
-   */
   if (
     text &&
     text.startsWith("/")
@@ -183,7 +178,9 @@ async function handleMessage(
 
   if (
     state.type ===
-    "ADD_CHANNEL"
+    "ADD_CHANNEL" ||
+    state.type ===
+    "EDIT_CHANNEL"
   ) {
     await handleChannelInput(
       env,
@@ -210,51 +207,41 @@ async function showAdminMenuAsNewMessage(
   env,
   chatId
 ) {
-  const sent =
-    await sendMessage(
-      env,
-      chatId,
-      "👑 LEOBOT ADMIN\n\nKelola toko:",
+  return sendMessage(
+    env,
+    chatId,
+    "👑 LEOBOT ADMIN\n\nKelola toko:",
+    [
       [
-        [
-          {
-            text: "📦 PRODUK",
-            callback_data:
-              "admin:products",
-          },
-        ],
-        [
-          {
-            text: "💳 PEMBAYARAN",
-            callback_data:
-              "admin:payment",
-          },
-        ],
-        [
-          {
-            text: "📢 CHANNEL VIP",
-            callback_data:
-              "admin:channel",
-          },
-        ],
-        [
-          {
-            text: "✏️ PESAN BOT",
-            callback_data:
-              "admin:messages",
-          },
-        ],
-      ]
-    );
-
-  /*
-   * Jika ada state lama, jangan gunakan
-   * state.message_id untuk /admin.
-   *
-   * /admin harus membuka menu baru dan
-   * tetap bisa digunakan kapan saja.
-   */
-  return sent;
+        {
+          text: "📦 PRODUK",
+          callback_data:
+            "admin:products",
+        },
+      ],
+      [
+        {
+          text: "💳 PEMBAYARAN",
+          callback_data:
+            "admin:payment",
+        },
+      ],
+      [
+        {
+          text: "📢 CHANNEL VIP",
+          callback_data:
+            "admin:channel",
+        },
+      ],
+      [
+        {
+          text: "✏️ PESAN BOT",
+          callback_data:
+            "admin:messages",
+        },
+      ],
+    ]
+  );
 }
 
 async function handleCallback(
@@ -288,9 +275,6 @@ async function handleCallback(
     return;
   }
 
-  /*
-   * USER
-   */
   if (
     data ===
     "user:menu"
@@ -322,9 +306,6 @@ async function handleCallback(
     return;
   }
 
-  /*
-   * ADMIN
-   */
   if (
     !data.startsWith(
       "admin:"
@@ -345,9 +326,6 @@ async function handleCallback(
   const parts =
     data.split(":");
 
-  /*
-   * ADMIN MENU
-   */
   if (
     data ===
     "admin:menu"
@@ -361,9 +339,6 @@ async function handleCallback(
     return;
   }
 
-  /*
-   * PRODUCTS
-   */
   if (
     data ===
     "admin:products"
@@ -537,12 +512,6 @@ async function handleCallback(
     return;
   }
 
-  /*
-   * BATAL EDIT PRODUCT
-   *
-   * admin:product:cancel
-   * admin:product:cancel:123
-   */
   if (
     parts[0] === "admin" &&
     parts[1] === "product" &&
@@ -558,9 +527,6 @@ async function handleCallback(
     return;
   }
 
-  /*
-   * ADD PRODUCT CHANNEL
-   */
   if (
     parts[0] === "admin" &&
     parts[1] === "product" &&
@@ -590,9 +556,6 @@ async function handleCallback(
     return;
   }
 
-  /*
-   * EDIT PRODUCT CHANNELS
-   */
   if (
     parts[0] === "admin" &&
     parts[1] === "product" &&
@@ -657,9 +620,6 @@ async function handleCallback(
     return;
   }
 
-  /*
-   * CHANNEL
-   */
   if (
     data ===
     "admin:channel"
@@ -686,9 +646,67 @@ async function handleCallback(
     return;
   }
 
-  /*
-   * MESSAGES
-   */
+  if (
+    parts[0] === "admin" &&
+    parts[1] === "channel" &&
+    parts[2] === "view"
+  ) {
+    await showChannelDetail(
+      env,
+      chatId,
+      messageId,
+      parts[3]
+    );
+
+    return;
+  }
+
+  if (
+    parts[0] === "admin" &&
+    parts[1] === "channel" &&
+    parts[2] === "edit"
+  ) {
+    await startEditChannel(
+      env,
+      chatId,
+      messageId,
+      parts[3]
+    );
+
+    return;
+  }
+
+  if (
+    parts[0] === "admin" &&
+    parts[1] === "channel" &&
+    parts[2] === "delete" &&
+    parts[3] !== "confirm"
+  ) {
+    await confirmDeleteChannel(
+      env,
+      chatId,
+      messageId,
+      parts[3]
+    );
+
+    return;
+  }
+
+  if (
+    parts[0] === "admin" &&
+    parts[1] === "channel" &&
+    parts[2] === "delete-confirm"
+  ) {
+    await deleteChannel(
+      env,
+      chatId,
+      messageId,
+      parts[3]
+    );
+
+    return;
+  }
+
   if (
     data ===
     "admin:messages"
@@ -747,9 +765,6 @@ async function handleCallback(
     return;
   }
 
-  /*
-   * MENU YANG BELUM MEMILIKI HANDLER
-   */
   if (
     data === "admin:payment" ||
     data === "admin:settings"
