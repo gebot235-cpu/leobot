@@ -16,6 +16,18 @@ import {
 import {
   showAdminProducts,
   showProductList,
+  showProductDetail,
+  showProductEdit,
+  startProductFieldEdit,
+  handleProductInput,
+  toggleProduct,
+  confirmDeleteProduct,
+  deleteProduct,
+  startAddProduct,
+  selectAddProductType,
+  handleAddProductInput,
+  skipDescription,
+  saveNewProduct,
 } from "./admin/products.js";
 
 import {
@@ -109,10 +121,7 @@ async function handleMessage(
       telegramId
     );
 
-  if (
-    state &&
-    state.type === "EDIT_MESSAGE"
-  ) {
+  if (state) {
     const admin =
       await isAdmin(
         env,
@@ -120,13 +129,44 @@ async function handleMessage(
       );
 
     if (admin) {
-      await handleMessageInput(
-        env,
-        message,
-        state
-      );
+      if (
+        state.type ===
+        "EDIT_MESSAGE"
+      ) {
+        await handleMessageInput(
+          env,
+          message,
+          state
+        );
 
-      return;
+        return;
+      }
+
+      if (
+        state.type ===
+        "EDIT_PRODUCT"
+      ) {
+        await handleProductInput(
+          env,
+          message,
+          state
+        );
+
+        return;
+      }
+
+      if (
+        state.type ===
+        "ADD_PRODUCT"
+      ) {
+        await handleAddProductInput(
+          env,
+          message,
+          state
+        );
+
+        return;
+      }
     }
   }
 
@@ -252,8 +292,22 @@ async function handleCallback(
     return;
   }
 
-  if (data === "admin:products") {
+  if (
+    data === "admin:products"
+  ) {
     await showAdminProducts(
+      env,
+      chatId,
+      messageId
+    );
+
+    return;
+  }
+
+  if (
+    data === "admin:product:add"
+  ) {
+    await startAddProduct(
       env,
       chatId,
       messageId
@@ -270,6 +324,183 @@ async function handleCallback(
       env,
       chatId,
       messageId
+    );
+
+    return;
+  }
+
+  if (
+    data.startsWith(
+      "admin:product:add:type:"
+    )
+  ) {
+    const type =
+      data.replace(
+        "admin:product:add:type:",
+        ""
+      );
+
+    await selectAddProductType(
+      env,
+      chatId,
+      messageId,
+      type
+    );
+
+    return;
+  }
+
+  if (
+    data ===
+    "admin:product:add:skip:description"
+  ) {
+    await skipDescription(
+      env,
+      chatId,
+      messageId
+    );
+
+    return;
+  }
+
+  if (
+    data ===
+    "admin:product:add:save"
+  ) {
+    await saveNewProduct(
+      env,
+      chatId,
+      messageId
+    );
+
+    return;
+  }
+
+  if (
+    data.startsWith(
+      "admin:product:view:"
+    )
+  ) {
+    const productId =
+      data.replace(
+        "admin:product:view:",
+        ""
+      );
+
+    await showProductDetail(
+      env,
+      chatId,
+      messageId,
+      productId
+    );
+
+    return;
+  }
+
+  if (
+    data.startsWith(
+      "admin:product:edit:"
+    )
+  ) {
+    const productId =
+      data.replace(
+        "admin:product:edit:",
+        ""
+      );
+
+    await showProductEdit(
+      env,
+      chatId,
+      messageId,
+      productId
+    );
+
+    return;
+  }
+
+  if (
+    data.startsWith(
+      "admin:product:field:"
+    )
+  ) {
+    const parts =
+      data.split(":");
+
+    const field =
+      parts[3];
+
+    const productId =
+      parts[4];
+
+    await startProductFieldEdit(
+      env,
+      chatId,
+      messageId,
+      productId,
+      field
+    );
+
+    return;
+  }
+
+  if (
+    data.startsWith(
+      "admin:product:toggle:"
+    )
+  ) {
+    const productId =
+      data.replace(
+        "admin:product:toggle:",
+        ""
+      );
+
+    await toggleProduct(
+      env,
+      chatId,
+      messageId,
+      productId
+    );
+
+    return;
+  }
+
+  if (
+    data.startsWith(
+      "admin:product:delete-confirm:"
+    )
+  ) {
+    const productId =
+      data.replace(
+        "admin:product:delete-confirm:",
+        ""
+      );
+
+    await deleteProduct(
+      env,
+      chatId,
+      messageId,
+      productId
+    );
+
+    return;
+  }
+
+  if (
+    data.startsWith(
+      "admin:product:delete:"
+    )
+  ) {
+    const productId =
+      data.replace(
+        "admin:product:delete:",
+        ""
+      );
+
+    await confirmDeleteProduct(
+      env,
+      chatId,
+      messageId,
+      productId
     );
 
     return;
@@ -366,7 +597,9 @@ async function handleCallback(
     return;
   }
 
-  if (data === "user:menu") {
+  if (
+    data === "user:menu"
+  ) {
     await showMainMenu(
       env,
       chatId,
