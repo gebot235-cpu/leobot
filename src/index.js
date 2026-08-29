@@ -57,6 +57,11 @@ import {
   showProduct,
 } from "./user/menu.js";
 
+import {
+  supabase,
+} from "./supabase.js";
+
+
 export default {
   async fetch(request, env) {
     if (request.method !== "POST") {
@@ -93,6 +98,7 @@ export default {
   },
 };
 
+
 async function handleMessage(
   env,
   message
@@ -117,6 +123,11 @@ async function handleMessage(
 
       return;
     }
+
+    await deleteAdminState(
+      env,
+      chatId
+    );
 
     await showAdminMenuAsNewMessage(
       env,
@@ -203,6 +214,7 @@ async function handleMessage(
   }
 }
 
+
 async function showAdminMenuAsNewMessage(
   env,
   chatId
@@ -243,6 +255,7 @@ async function showAdminMenuAsNewMessage(
     ]
   );
 }
+
 
 async function handleCallback(
   env,
@@ -326,10 +339,16 @@ async function handleCallback(
   const parts =
     data.split(":");
 
+
   if (
     data ===
     "admin:menu"
   ) {
+    await deleteAdminState(
+      env,
+      chatId
+    );
+
     await showAdminMenu(
       env,
       chatId,
@@ -338,6 +357,7 @@ async function handleCallback(
 
     return;
   }
+
 
   if (
     data ===
@@ -620,10 +640,16 @@ async function handleCallback(
     return;
   }
 
+
   if (
     data ===
     "admin:channel"
   ) {
+    await deleteAdminState(
+      env,
+      chatId
+    );
+
     await showChannelMenu(
       env,
       chatId,
@@ -707,6 +733,7 @@ async function handleCallback(
     return;
   }
 
+
   if (
     data ===
     "admin:messages"
@@ -716,6 +743,37 @@ async function handleCallback(
       chatId,
       messageId
     );
+
+    return;
+  }
+
+  if (
+    parts[0] === "admin" &&
+    parts[1] === "message" &&
+    parts[2] === "cancel"
+  ) {
+    await deleteAdminState(
+      env,
+      chatId
+    );
+
+    const type =
+      parts[3];
+
+    if (type) {
+      await showMessageEditor(
+        env,
+        chatId,
+        messageId,
+        type
+      );
+    } else {
+      await showMessageMenu(
+        env,
+        chatId,
+        messageId
+      );
+    }
 
     return;
   }
@@ -765,6 +823,7 @@ async function handleCallback(
     return;
   }
 
+
   if (
     data === "admin:payment" ||
     data === "admin:settings"
@@ -785,4 +844,16 @@ async function handleCallback(
       ]
     );
   }
+}
+
+
+async function deleteAdminState(
+  env,
+  telegramId
+) {
+  return supabase(
+    env,
+    `settings?key=eq.admin_state_${telegramId}`,
+    "DELETE"
+  );
 }
