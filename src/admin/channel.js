@@ -30,16 +30,14 @@ export async function showChannelMenu(
   buttons.push([
     {
       text: "➕ TAMBAH CHANNEL",
-      callback_data:
-        "admin:channel:add",
+      callback_data: "admin:channel:add",
     },
   ]);
 
   buttons.push([
     {
       text: "◀️ KEMBALI",
-      callback_data:
-        "admin:menu",
+      callback_data: "admin:menu",
     },
   ]);
 
@@ -47,7 +45,7 @@ export async function showChannelMenu(
     env,
     chatId,
     messageId,
-`📢 CHANNEL VIP
+    `📢 CHANNEL VIP
 
 Total channel: ${channels.length}
 
@@ -75,7 +73,7 @@ export async function startAddChannel(
     env,
     chatId,
     messageId,
-`➕ TAMBAH CHANNEL VIP
+    `➕ TAMBAH CHANNEL VIP
 
 Kirim Channel ID.
 
@@ -85,8 +83,7 @@ Contoh:
       [
         {
           text: "❌ BATAL",
-          callback_data:
-            "admin:channel",
+          callback_data: "admin:channel",
         },
       ],
     ]
@@ -106,15 +103,17 @@ export async function handleChannelInput(
     return true;
   }
 
-  if (!/^-100\d+$/.test(value)) {
-    return sendMessage(
+  if (!/^-100[0-9]+$/.test(value)) {
+    await sendMessage(
       env,
       message.chat.id,
-`❌ Channel ID tidak valid.
+      `❌ Channel ID tidak valid.
 
 Contoh:
 -1001234567890`
     );
+
+    return true;
   }
 
   const channelId =
@@ -129,11 +128,11 @@ Contoh:
       }
     );
 
-  if (!chat?.ok) {
+  if (!chat || !chat.ok) {
     await sendMessage(
       env,
       message.chat.id,
-`❌ Channel tidak ditemukan.
+      `❌ Channel tidak ditemukan.
 
 Pastikan Channel ID benar dan LeoBot sudah menjadi admin channel.`
     );
@@ -142,8 +141,8 @@ Pastikan Channel ID benar dan LeoBot sudah menjadi admin channel.`
   }
 
   if (
-    chat.result.type !==
-    "channel"
+    !chat.result ||
+    chat.result.type !== "channel"
   ) {
     await sendMessage(
       env,
@@ -161,7 +160,7 @@ Pastikan Channel ID benar dan LeoBot sudah menjadi admin channel.`
       {}
     );
 
-  if (!me?.ok) {
+  if (!me || !me.ok) {
     await sendMessage(
       env,
       message.chat.id,
@@ -181,11 +180,11 @@ Pastikan Channel ID benar dan LeoBot sudah menjadi admin channel.`
       }
     );
 
-  if (!member?.ok) {
+  if (!member || !member.ok) {
     await sendMessage(
       env,
       message.chat.id,
-`❌ Gagal memeriksa status LeoBot.
+      `❌ Gagal memeriksa status LeoBot.
 
 Pastikan LeoBot sudah menjadi admin channel.`
     );
@@ -193,16 +192,17 @@ Pastikan LeoBot sudah menjadi admin channel.`
     return true;
   }
 
+  const status =
+    member.result.status;
+
   if (
-    member.result.status !==
-      "administrator" &&
-    member.result.status !==
-      "creator"
+    status !== "administrator" &&
+    status !== "creator"
   ) {
     await sendMessage(
       env,
       message.chat.id,
-`❌ LeoBot bukan admin channel.
+      `❌ LeoBot bukan admin channel.
 
 Tambahkan LeoBot sebagai admin terlebih dahulu.`
     );
@@ -217,7 +217,8 @@ Tambahkan LeoBot sebagai admin terlebih dahulu.`
     );
 
   if (
-    existing?.length > 0
+    existing &&
+    existing.length > 0
   ) {
     await deleteState(
       env,
@@ -234,7 +235,7 @@ Tambahkan LeoBot sebagai admin terlebih dahulu.`
       env,
       message.chat.id,
       state.message_id,
-`⚠️ CHANNEL SUDAH TERDAFTAR
+      `⚠️ CHANNEL SUDAH TERDAFTAR
 
 📢 ${existing[0].name || "Channel VIP"}
 
@@ -243,34 +244,30 @@ Tambahkan LeoBot sebagai admin terlebih dahulu.`
         [
           {
             text: "📢 CHANNEL VIP",
-            callback_data:
-              "admin:channel",
+            callback_data: "admin:channel",
           },
         ],
         [
           {
             text: "◀️ ADMIN",
-            callback_data:
-              "admin:menu",
+            callback_data: "admin:menu",
           },
-        },
+        ],
       ]
     );
   }
 
-  const result =
+  const created =
     await supabase(
       env,
       "vip_channels",
       "POST",
       {
-        channel_id:
-          channelId,
+        channel_id: channelId,
         name:
           chat.result.title ||
           "Channel VIP",
-        is_active:
-          true,
+        is_active: true,
         created_at:
           new Date().toISOString(),
         updated_at:
@@ -278,7 +275,7 @@ Tambahkan LeoBot sebagai admin terlebih dahulu.`
       }
     );
 
-  if (!result) {
+  if (!created) {
     await sendMessage(
       env,
       message.chat.id,
@@ -295,12 +292,13 @@ Tambahkan LeoBot sebagai admin terlebih dahulu.`
     );
 
   if (
-    !saved?.length
+    !saved ||
+    saved.length === 0
   ) {
     await sendMessage(
       env,
       message.chat.id,
-      "❌ Channel gagal dibaca setelah disimpan."
+      "❌ Channel gagal disimpan."
     );
 
     return true;
@@ -321,7 +319,7 @@ Tambahkan LeoBot sebagai admin terlebih dahulu.`
     env,
     message.chat.id,
     state.message_id,
-`✅ CHANNEL TERSIMPAN
+    `✅ CHANNEL TERSIMPAN
 
 📢 ${saved[0].name || "Channel VIP"}
 
@@ -330,15 +328,13 @@ Tambahkan LeoBot sebagai admin terlebih dahulu.`
       [
         {
           text: "📢 CHANNEL VIP",
-          callback_data:
-            "admin:channel",
+          callback_data: "admin:channel",
         },
       ],
       [
         {
           text: "◀️ ADMIN",
-          callback_data:
-            "admin:menu",
+          callback_data: "admin:menu",
         },
       ],
     ]
@@ -346,9 +342,7 @@ Tambahkan LeoBot sebagai admin terlebih dahulu.`
 }
 
 
-async function getChannels(
-  env
-) {
+async function getChannels(env) {
   return supabase(
     env,
     "vip_channels?order=id.asc"
