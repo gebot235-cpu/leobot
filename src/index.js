@@ -50,6 +50,10 @@ import {
   getState,
 } from "./admin/messages.js";
 
+import {
+  supabase,
+} from "./supabase.js";
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -68,8 +72,7 @@ export default {
       url.pathname === "/telegram"
     ) {
       try {
-        const update =
-          await request.json();
+        const update = await request.json();
 
         await handleUpdate(
           update,
@@ -85,7 +88,9 @@ export default {
 
     return new Response(
       "Not Found",
-      { status: 404 }
+      {
+        status: 404,
+      }
     );
   },
 };
@@ -273,10 +278,10 @@ async function handleCallback(
     callback.data || "";
 
   const chatId =
-    callback.message.chat.id;
+    callback.message?.chat?.id;
 
   const messageId =
-    callback.message.message_id;
+    callback.message?.message_id;
 
   const telegramId =
     callback.from.id;
@@ -300,12 +305,20 @@ async function handleCallback(
     }
   }
 
+  if (isCancelCallback(data)) {
+    await deleteAdminState(
+      env,
+      telegramId
+    );
+  }
+
   if (data === "admin:menu") {
     await showAdminMenu(
       env,
       chatId,
       messageId
     );
+
     return;
   }
 
@@ -315,6 +328,7 @@ async function handleCallback(
       chatId,
       messageId
     );
+
     return;
   }
 
@@ -327,6 +341,7 @@ async function handleCallback(
       chatId,
       messageId
     );
+
     return;
   }
 
@@ -339,6 +354,7 @@ async function handleCallback(
       chatId,
       messageId
     );
+
     return;
   }
 
@@ -359,6 +375,7 @@ async function handleCallback(
       messageId,
       type
     );
+
     return;
   }
 
@@ -371,6 +388,7 @@ async function handleCallback(
       chatId,
       messageId
     );
+
     return;
   }
 
@@ -383,6 +401,7 @@ async function handleCallback(
       chatId,
       messageId
     );
+
     return;
   }
 
@@ -403,6 +422,7 @@ async function handleCallback(
       messageId,
       productId
     );
+
     return;
   }
 
@@ -423,6 +443,7 @@ async function handleCallback(
       messageId,
       productId
     );
+
     return;
   }
 
@@ -447,6 +468,7 @@ async function handleCallback(
       productId,
       field
     );
+
     return;
   }
 
@@ -467,6 +489,7 @@ async function handleCallback(
       messageId,
       productId
     );
+
     return;
   }
 
@@ -487,6 +510,7 @@ async function handleCallback(
       messageId,
       channelId
     );
+
     return;
   }
 
@@ -499,6 +523,7 @@ async function handleCallback(
       chatId,
       messageId
     );
+
     return;
   }
 
@@ -523,6 +548,7 @@ async function handleCallback(
       productId,
       channelId
     );
+
     return;
   }
 
@@ -543,6 +569,7 @@ async function handleCallback(
       messageId,
       productId
     );
+
     return;
   }
 
@@ -563,6 +590,7 @@ async function handleCallback(
       messageId,
       productId
     );
+
     return;
   }
 
@@ -583,6 +611,7 @@ async function handleCallback(
       messageId,
       productId
     );
+
     return;
   }
 
@@ -603,17 +632,20 @@ async function handleCallback(
       messageId,
       productId
     );
+
     return;
   }
 
   if (
-    data === "admin:channel"
+    data ===
+    "admin:channel"
   ) {
     await showChannelMenu(
       env,
       chatId,
       messageId
     );
+
     return;
   }
 
@@ -626,17 +658,20 @@ async function handleCallback(
       chatId,
       messageId
     );
+
     return;
   }
 
   if (
-    data === "admin:messages"
+    data ===
+    "admin:messages"
   ) {
     await showMessageMenu(
       env,
       chatId,
       messageId
     );
+
     return;
   }
 
@@ -657,6 +692,7 @@ async function handleCallback(
       messageId,
       type
     );
+
     return;
   }
 
@@ -677,6 +713,7 @@ async function handleCallback(
       messageId,
       type
     );
+
     return;
   }
 
@@ -697,6 +734,7 @@ async function handleCallback(
       messageId,
       type
     );
+
     return;
   }
 
@@ -712,6 +750,7 @@ async function handleCallback(
       messageId,
       productId
     );
+
     return;
   }
 
@@ -723,6 +762,34 @@ async function handleCallback(
       chatId,
       messageId
     );
+
     return;
   }
+}
+
+function isCancelCallback(
+  data
+) {
+  return (
+    data === "admin:menu" ||
+    data === "admin:products" ||
+    data === "admin:product:list" ||
+    data === "admin:channel" ||
+    data === "admin:messages" ||
+    data === "admin:product:add" ||
+    /^admin:product:view:\d+$/.test(data) ||
+    /^admin:product:edit:\d+$/.test(data) ||
+    /^admin:product:channels:\d+$/.test(data)
+  );
+}
+
+async function deleteAdminState(
+  env,
+  telegramId
+) {
+  await supabase(
+    env,
+    `settings?key=eq.admin_state_${telegramId}`,
+    "DELETE"
+  );
 }
