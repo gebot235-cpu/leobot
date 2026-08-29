@@ -144,15 +144,46 @@ Gunakan format seperti:
       message.chat.id,
 `❌ Channel tidak ditemukan.
 
-Pastikan:
-• Channel ID benar
-• LeoBot sudah menjadi admin channel`
+Pastikan Channel ID benar dan LeoBot sudah menjadi admin channel.`
     );
 
     return true;
   }
 
-  const admins =
+  if (
+    chat.result.type !==
+    "channel"
+  ) {
+    await sendMessage(
+      env,
+      message.chat.id,
+      "❌ ID tersebut bukan channel Telegram."
+    );
+
+    return true;
+  }
+
+  const me =
+    await telegramRequest(
+      env,
+      "getMe",
+      {}
+    );
+
+  if (!me?.ok) {
+    await sendMessage(
+      env,
+      message.chat.id,
+      "❌ Gagal membaca data bot."
+    );
+
+    return true;
+  }
+
+  const botId =
+    me.result.id;
+
+  const member =
     await telegramRequest(
       env,
       "getChatMember",
@@ -160,34 +191,34 @@ Pastikan:
         chat_id:
           channelId,
         user_id:
-          env.BOT_ID,
+          botId,
       }
     );
 
-  if (!admins?.ok) {
+  if (!member?.ok) {
     await sendMessage(
       env,
       message.chat.id,
-`⚠️ Channel ditemukan, tetapi status admin bot tidak dapat diperiksa.
+`❌ Gagal memeriksa status LeoBot di channel.
 
-Pastikan BOT_ID sudah tersedia di Worker.`
+Pastikan LeoBot sudah ditambahkan sebagai admin.`
     );
 
     return true;
   }
 
   if (
-    admins.result.status !==
-    "administrator" &&
-    admins.result.status !==
-    "creator"
+    member.result.status !==
+      "administrator" &&
+    member.result.status !==
+      "creator"
   ) {
     await sendMessage(
       env,
       message.chat.id,
 `❌ LeoBot bukan admin channel.
 
-Jadikan LeoBot sebagai admin terlebih dahulu.`
+Tambahkan LeoBot sebagai admin terlebih dahulu.`
     );
 
     return true;
@@ -209,22 +240,33 @@ Jadikan LeoBot sebagai admin terlebih dahulu.`
     return true;
   }
 
-  await supabase(
-    env,
-    "vip_channels",
-    "POST",
-    {
-      channel_id:
-        channelId,
-      name:
-        chat.result.title ||
-        "Channel VIP",
-      is_active:
-        true,
-      updated_at:
-        new Date().toISOString(),
-    }
-  );
+  const result =
+    await supabase(
+      env,
+      "vip_channels",
+      "POST",
+      {
+        channel_id:
+          channelId,
+        name:
+          chat.result.title ||
+          "Channel VIP",
+        is_active:
+          true,
+        updated_at:
+          new Date().toISOString(),
+      }
+    );
+
+  if (!result) {
+    await sendMessage(
+      env,
+      message.chat.id,
+      "❌ Gagal menyimpan channel."
+    );
+
+    return true;
+  }
 
   await deleteState(
     env,
