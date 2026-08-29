@@ -887,7 +887,7 @@ telegramId
 ) {
 return supabase(
 env,
-"settings?key=eq.admin_state_${telegramId}",
+`settings?key=eq.admin_state_${telegramId}`,
 "DELETE"
 );
 }
