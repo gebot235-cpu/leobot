@@ -224,6 +224,48 @@ export async function showProductEdit(
     return;
   }
 
+  const buttons = [
+    [
+      {
+        text: "📝 NAMA",
+        callback_data:
+          `admin:product:field:name:${product.id}`,
+      },
+    ],
+    [
+      {
+        text: "📄 DESKRIPSI",
+        callback_data:
+          `admin:product:field:description:${product.id}`,
+      },
+    ],
+    [
+      {
+        text: "💰 HARGA",
+        callback_data:
+          `admin:product:field:price:${product.id}`,
+      },
+    ],
+  ];
+
+  if (product.type === "VIP") {
+    buttons.push([
+      {
+        text: "⏳ DURASI",
+        callback_data:
+          `admin:product:field:duration_days:${product.id}`,
+      },
+    ]);
+  }
+
+  buttons.push([
+    {
+      text: "◀️ KEMBALI",
+      callback_data:
+        `admin:product:view:${product.id}`,
+    },
+  ]);
+
   return editMessage(
     env,
     chatId,
@@ -234,43 +276,7 @@ export async function showProductEdit(
 
 Pilih data yang ingin diubah:`,
 
-    [
-      [
-        {
-          text: "📝 NAMA",
-          callback_data:
-            `admin:product:field:name:${product.id}`,
-        },
-      ],
-      [
-        {
-          text: "📄 DESKRIPSI",
-          callback_data:
-            `admin:product:field:description:${product.id}`,
-        },
-      ],
-      [
-        {
-          text: "💰 HARGA",
-          callback_data:
-            `admin:product:field:price:${product.id}`,
-        },
-      ],
-      [
-        {
-          text: "⏳ DURASI",
-          callback_data:
-            `admin:product:field:duration_days:${product.id}`,
-        },
-      ],
-      [
-        {
-          text: "◀️ KEMBALI",
-          callback_data:
-            `admin:product:view:${product.id}`,
-        },
-      ],
-    ]
+    buttons
   );
 }
 
@@ -353,18 +359,14 @@ export async function handleProductInput(
     return true;
   }
 
-  const allowedFields = [
+  const fields = [
     "name",
     "description",
     "price",
     "duration_days",
   ];
 
-  if (
-    !allowedFields.includes(
-      state.field
-    )
-  ) {
+  if (!fields.includes(state.field)) {
     return true;
   }
 
@@ -376,13 +378,10 @@ export async function handleProductInput(
   ) {
     const number =
       Number(
-        value.replace(
-          /\D/g,
-          ""
-        )
+        value.replace(/\D/g, "")
       );
 
-    if (!Number.isFinite(number)) {
+    if (!Number.isFinite(number) || number <= 0) {
       return true;
     }
 
@@ -419,6 +418,541 @@ export async function handleProductInput(
   );
 
   return true;
+}
+
+
+export async function startAddProduct(
+  env,
+  chatId,
+  messageId
+) {
+  await saveState(
+    env,
+    chatId,
+    {
+      type: "ADD_PRODUCT",
+      step: "TYPE",
+      message_id: messageId,
+    }
+  );
+
+  return editMessage(
+    env,
+    chatId,
+    messageId,
+`➕ TAMBAH PRODUK
+
+Pilih jenis produk:`,
+
+    [
+      [
+        {
+          text: "🟢 VIP",
+          callback_data:
+            "admin:product:add:type:VIP",
+        },
+      ],
+      [
+        {
+          text: "📦 DIGITAL",
+          callback_data:
+            "admin:product:add:type:DIGITAL",
+        },
+      ],
+      [
+        {
+          text: "❌ BATAL",
+          callback_data:
+            "admin:products",
+        },
+      ],
+    ]
+  );
+}
+
+
+export async function selectAddProductType(
+  env,
+  chatId,
+  messageId,
+  type
+) {
+  if (
+    type !== "VIP" &&
+    type !== "DIGITAL"
+  ) {
+    return;
+  }
+
+  await saveState(
+    env,
+    chatId,
+    {
+      type: "ADD_PRODUCT",
+      step: "NAME",
+      product_type: type,
+      message_id: messageId,
+    }
+  );
+
+  return editMessage(
+    env,
+    chatId,
+    messageId,
+`➕ TAMBAH ${type}
+
+Langkah 1/4
+
+Kirim nama produk:`,
+
+    [
+      [
+        {
+          text: "❌ BATAL",
+          callback_data:
+            "admin:products",
+        },
+      ],
+    ]
+  );
+}
+
+
+export async function handleAddProductInput(
+  env,
+  message,
+  state
+) {
+  const value =
+    message.text?.trim();
+
+  if (!value) {
+    return true;
+  }
+
+  if (state.step === "NAME") {
+    await updateState(
+      env,
+      message.from.id,
+      {
+        ...state,
+        step: "DESCRIPTION",
+        name: value,
+      }
+    );
+
+    await deleteInput(
+      env,
+      message
+    );
+
+    return editMessage(
+      env,
+      message.chat.id,
+      state.message_id,
+`➕ TAMBAH ${state.product_type}
+
+Langkah 2/4
+
+Nama:
+${value}
+
+Kirim deskripsi produk:`,
+
+      [
+        [
+          {
+            text: "⏭️ LEWATI",
+            callback_data:
+              "admin:product:add:skip:description",
+          },
+        ],
+        [
+          {
+            text: "❌ BATAL",
+            callback_data:
+              "admin:products",
+          },
+        ],
+      ]
+    );
+  }
+
+  if (state.step === "DESCRIPTION") {
+    await updateState(
+      env,
+      message.from.id,
+      {
+        ...state,
+        step: "PRICE",
+        description: value,
+      }
+    );
+
+    await deleteInput(
+      env,
+      message
+    );
+
+    return editMessage(
+      env,
+      message.chat.id,
+      state.message_id,
+`➕ TAMBAH ${state.product_type}
+
+Langkah 3/4
+
+Kirim harga produk:
+
+Contoh:
+50000`,
+
+      [
+        [
+          {
+            text: "❌ BATAL",
+            callback_data:
+              "admin:products",
+          },
+        ],
+      ]
+    );
+  }
+
+  if (state.step === "PRICE") {
+    const price =
+      Number(
+        value.replace(/\D/g, "")
+      );
+
+    if (
+      !Number.isFinite(price) ||
+      price <= 0
+    ) {
+      return editMessage(
+        env,
+        message.chat.id,
+        state.message_id,
+`❌ Harga tidak valid.
+
+Kirim harga dalam angka.
+
+Contoh:
+50000`,
+        [
+          [
+            {
+              text: "❌ BATAL",
+              callback_data:
+                "admin:products",
+            },
+          ],
+        ]
+      );
+    }
+
+    await updateState(
+      env,
+      message.from.id,
+      {
+        ...state,
+        step:
+          state.product_type === "VIP"
+            ? "DURATION"
+            : "CONFIRM",
+        price,
+      }
+    );
+
+    await deleteInput(
+      env,
+      message
+    );
+
+    if (
+      state.product_type === "VIP"
+    ) {
+      return editMessage(
+        env,
+        message.chat.id,
+        state.message_id,
+`➕ TAMBAH VIP
+
+Langkah 4/4
+
+Kirim masa aktif dalam hari.
+
+Contoh:
+30`,
+        [
+          [
+            {
+              text: "❌ BATAL",
+              callback_data:
+                "admin:products",
+            },
+          ],
+        ]
+      );
+    }
+
+    return showAddConfirmation(
+      env,
+      message.chat.id,
+      state.message_id,
+      {
+        ...state,
+        price,
+      }
+    );
+  }
+
+  if (state.step === "DURATION") {
+    const duration =
+      Number(
+        value.replace(/\D/g, "")
+      );
+
+    if (
+      !Number.isFinite(duration) ||
+      duration <= 0
+    ) {
+      return editMessage(
+        env,
+        message.chat.id,
+        state.message_id,
+`❌ Durasi tidak valid.
+
+Kirim jumlah hari.
+
+Contoh:
+30`,
+        [
+          [
+            {
+              text: "❌ BATAL",
+              callback_data:
+                "admin:products",
+            },
+          ],
+        ]
+      );
+    }
+
+    await updateState(
+      env,
+      message.from.id,
+      {
+        ...state,
+        step: "CONFIRM",
+        duration_days:
+          duration,
+      }
+    );
+
+    await deleteInput(
+      env,
+      message
+    );
+
+    return showAddConfirmation(
+      env,
+      message.chat.id,
+      state.message_id,
+      {
+        ...state,
+        duration_days:
+          duration,
+      }
+    );
+  }
+
+  return true;
+}
+
+
+export async function skipDescription(
+  env,
+  chatId,
+  messageId
+) {
+  const state =
+    await getState(
+      env,
+      chatId
+    );
+
+  if (!state) {
+    return;
+  }
+
+  await updateState(
+    env,
+    chatId,
+    {
+      ...state,
+      step: "PRICE",
+      description: null,
+    }
+  );
+
+  return editMessage(
+    env,
+    chatId,
+    messageId,
+`➕ TAMBAH ${state.product_type}
+
+Langkah 3/4
+
+Kirim harga produk:
+
+Contoh:
+50000`,
+    [
+      [
+        {
+          text: "❌ BATAL",
+          callback_data:
+            "admin:products",
+        },
+      ],
+    ]
+  );
+}
+
+
+async function showAddConfirmation(
+  env,
+  chatId,
+  messageId,
+  state
+) {
+  let text =
+`➕ KONFIRMASI PRODUK
+
+📦 ${state.name}
+
+🏷️ ${state.product_type}
+
+💰 Rp${Number(state.price).toLocaleString("id-ID")}`;
+
+  if (
+    state.product_type === "VIP"
+  ) {
+    text +=
+      `\n⏳ ${state.duration_days} hari`;
+  }
+
+  if (state.description) {
+    text +=
+      `\n\n📝 ${state.description}`;
+  }
+
+  return editMessage(
+    env,
+    chatId,
+    messageId,
+    text,
+    [
+      [
+        {
+          text: "✅ SIMPAN",
+          callback_data:
+            "admin:product:add:save",
+        },
+      ],
+      [
+        {
+          text: "❌ BATAL",
+          callback_data:
+            "admin:products",
+        },
+      ],
+    ]
+  );
+}
+
+
+export async function saveNewProduct(
+  env,
+  chatId,
+  messageId
+) {
+  const state =
+    await getState(
+      env,
+      chatId
+    );
+
+  if (!state) {
+    return;
+  }
+
+  if (
+    !state.name ||
+    !state.price ||
+    !state.product_type
+  ) {
+    return;
+  }
+
+  if (
+    state.product_type === "VIP" &&
+    !state.duration_days
+  ) {
+    return;
+  }
+
+  await supabase(
+    env,
+    "products",
+    "POST",
+    {
+      name: state.name,
+      description:
+        state.description || null,
+      price: state.price,
+      type: state.product_type,
+      duration_days:
+        state.product_type === "VIP"
+          ? state.duration_days
+          : null,
+      is_active: true,
+    }
+  );
+
+  await deleteState(
+    env,
+    chatId
+  );
+
+  return editMessage(
+    env,
+    chatId,
+    messageId,
+`✅ PRODUK TERSIMPAN
+
+${state.name}
+
+Produk berhasil ditambahkan.`,
+
+    [
+      [
+        {
+          text: "📦 PRODUK",
+          callback_data:
+            "admin:products",
+        },
+      ],
+      [
+        {
+          text: "◀️ ADMIN",
+          callback_data:
+            "admin:menu",
+        },
+      ],
+    ]
+  );
 }
 
 
@@ -524,7 +1058,7 @@ export async function deleteProduct(
 }
 
 
-export async function getProduct(
+async function getProduct(
   env,
   productId
 ) {
@@ -562,6 +1096,30 @@ async function updateProduct(
 }
 
 
+async function getState(
+  env,
+  telegramId
+) {
+  const rows =
+    await supabase(
+      env,
+      `settings?key=eq.admin_state_${telegramId}&limit=1`
+    );
+
+  if (!rows.length) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(
+      rows[0].value
+    );
+  } catch {
+    return null;
+  }
+}
+
+
 async function saveState(
   env,
   telegramId,
@@ -587,6 +1145,19 @@ async function saveState(
 }
 
 
+async function updateState(
+  env,
+  telegramId,
+  state
+) {
+  return saveState(
+    env,
+    telegramId,
+    state
+  );
+}
+
+
 async function deleteState(
   env,
   telegramId
@@ -596,4 +1167,18 @@ async function deleteState(
     `settings?key=eq.admin_state_${telegramId}`,
     "DELETE"
   );
+}
+
+
+async function deleteInput(
+  env,
+  message
+) {
+  if (message.message_id) {
+    await deleteMessage(
+      env,
+      message.chat.id,
+      message.message_id
+    );
+  }
 }
