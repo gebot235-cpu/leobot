@@ -1,24 +1,67 @@
-import { sendMessage } from "../telegram.js";
-import { getActiveProducts } from "../products/products.js";
+import { editMessage } from "../telegram.js";
+import { supabase } from "../supabase.js";
 
-export async function showAdminProducts(env, chatId) {
+export async function showAdminProducts(
+  env,
+  chatId,
+  messageId
+) {
   const products = await getAllProducts(env);
 
-  const buttons = [];
+  const buttons = [
+    [
+      {
+        text: "➕ TAMBAH PRODUK",
+        callback_data: "admin:product:add"
+      }
+    ],
+    [
+      {
+        text: "📋 DAFTAR PRODUK",
+        callback_data: "admin:product:list"
+      }
+    ],
+    [
+      {
+        text: "◀️ KEMBALI",
+        callback_data: "admin:menu"
+      }
+    ]
+  ];
 
-  buttons.push([
-    {
-      text: "➕ TAMBAH PRODUK",
-      callback_data: "admin:product:add"
-    }
-  ]);
+  return editMessage(
+    env,
+    chatId,
+    messageId,
+
+`📦 PRODUK
+
+Kelola produk toko.
+
+Total produk: ${products.length}`,
+
+    buttons
+  );
+}
+
+
+export async function showProductList(
+  env,
+  chatId,
+  messageId
+) {
+  const products =
+    await getAllProducts(env);
+
+  const buttons = [];
 
   for (const product of products) {
     buttons.push([
       {
         text:
           `${product.is_active ? "🟢" : "🔴"} ${product.name}`,
-        callback_data: `admin:product:${product.id}`
+        callback_data:
+          `admin:product:view:${product.id}`
       }
     ]);
   }
@@ -26,43 +69,34 @@ export async function showAdminProducts(env, chatId) {
   buttons.push([
     {
       text: "◀️ KEMBALI",
-      callback_data: "admin:menu"
+      callback_data: "admin:products"
     }
   ]);
 
-  let text = "📦 KELOLA PRODUK\n\n";
+  let text =
+`📋 DAFTAR PRODUK
+
+`;
 
   if (products.length === 0) {
     text += "Belum ada produk.";
   } else {
-    text += "Pilih produk untuk mengelola:";
+    text += "Pilih produk:";
   }
 
-  await sendMessage(
+  return editMessage(
     env,
     chatId,
+    messageId,
     text,
     buttons
   );
 }
 
+
 async function getAllProducts(env) {
-  const response = await fetch(
-    `${env.SUPABASE_URL}/rest/v1/products?order=id.asc`,
-    {
-      headers: {
-        apikey: env.SUPABASE_SERVICE_ROLE_KEY,
-        Authorization:
-          `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`
-      }
-    }
+  return supabase(
+    env,
+    "products?order=id.asc"
   );
-
-  if (!response.ok) {
-    throw new Error(
-      await response.text()
-    );
-  }
-
-  return response.json();
 }
