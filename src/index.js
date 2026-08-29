@@ -18,29 +18,29 @@ import {
   showProductList,
 } from "./admin/products.js";
 
+import {
+  showMessageMenu,
+  showMessageEditor,
+  startMessageEdit,
+  handleMessageInput,
+  restoreDefault,
+  getState,
+} from "./admin/messages.js";
+
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    // Health check
     if (
       request.method === "GET" &&
       url.pathname === "/"
     ) {
       return new Response(
-        "LeoBot is online ✅",
-        {
-          status: 200,
-          headers: {
-            "content-type":
-              "text/plain; charset=UTF-8",
-          },
-        }
+        "LeoBot is online ✅"
       );
     }
 
-    // Telegram webhook
     if (
       request.method === "POST" &&
       url.pathname === "/telegram"
@@ -56,33 +56,19 @@ export default {
 
         return new Response("OK");
       } catch (error) {
-        console.error(
-          "Webhook error:",
-          error
-        );
+        console.error(error);
 
-        // Tetap balas OK ke Telegram
-        // supaya Telegram tidak terus
-        // mengirim ulang update.
         return new Response("OK");
       }
     }
 
     return new Response(
       "Not Found",
-      {
-        status: 404,
-      }
+      { status: 404 }
     );
   },
 };
 
-
-/*
-|--------------------------------------------------------------------------
-| UPDATE HANDLER
-|--------------------------------------------------------------------------
-*/
 
 async function handleUpdate(
   update,
@@ -104,12 +90,6 @@ async function handleUpdate(
 }
 
 
-/*
-|--------------------------------------------------------------------------
-| MESSAGE HANDLER
-|--------------------------------------------------------------------------
-*/
-
 async function handleMessage(
   message,
   env
@@ -117,14 +97,38 @@ async function handleMessage(
   const chatId =
     message.chat.id;
 
+  const telegramId =
+    message.from.id;
+
   const text =
     message.text || "";
 
-  /*
-  |--------------------------------------------------------------------------
-  | USER
-  |--------------------------------------------------------------------------
-  */
+  const state =
+    await getState(
+      env,
+      telegramId
+    );
+
+  if (
+    state &&
+    state.type === "EDIT_MESSAGE"
+  ) {
+    const admin =
+      await isAdmin(
+        env,
+        telegramId
+      );
+
+    if (admin) {
+      await handleMessageInput(
+        env,
+        message,
+        state
+      );
+
+      return;
+    }
+  }
 
   if (text === "/start") {
     await showMainMenu(
@@ -135,18 +139,11 @@ async function handleMessage(
     return;
   }
 
-
-  /*
-  |--------------------------------------------------------------------------
-  | ADMIN
-  |--------------------------------------------------------------------------
-  */
-
   if (text === "/admin") {
     const admin =
       await isAdmin(
         env,
-        message.from.id
+        telegramId
       );
 
     if (!admin) {
@@ -174,7 +171,6 @@ Kelola toko:`,
               "admin:products",
           },
         ],
-
         [
           {
             text: "💳 PEMBAYARAN",
@@ -182,7 +178,6 @@ Kelola toko:`,
               "admin:payment",
           },
         ],
-
         [
           {
             text: "📢 CHANNEL VIP",
@@ -190,7 +185,13 @@ Kelola toko:`,
               "admin:channel",
           },
         ],
-
+        [
+          {
+            text: "✏️ PESAN BOT",
+            callback_data:
+              "admin:messages",
+          },
+        ],
         [
           {
             text: "⚙️ PENGATURAN",
@@ -205,12 +206,6 @@ Kelola toko:`,
   }
 }
 
-
-/*
-|--------------------------------------------------------------------------
-| CALLBACK HANDLER
-|--------------------------------------------------------------------------
-*/
 
 async function handleCallback(
   callback,
@@ -228,26 +223,14 @@ async function handleCallback(
   const telegramId =
     callback.from.id;
 
-
-  /*
-  |--------------------------------------------------------------------------
-  | STOP LOADING BUTTON
-  |--------------------------------------------------------------------------
-  */
-
   await answerCallback(
     env,
     callback.id
   );
 
-
-  /*
-  |--------------------------------------------------------------------------
-  | ADMIN MENU
-  |--------------------------------------------------------------------------
-  */
-
-  if (data === "admin:menu") {
+  if (
+    data.startsWith("admin:")
+  ) {
     const admin =
       await isAdmin(
         env,
@@ -257,7 +240,9 @@ async function handleCallback(
     if (!admin) {
       return;
     }
+  }
 
+  if (data === "admin:menu") {
     await showAdminMenu(
       env,
       chatId,
@@ -267,24 +252,7 @@ async function handleCallback(
     return;
   }
 
-
-  /*
-  |--------------------------------------------------------------------------
-  | ADMIN PRODUCTS
-  |--------------------------------------------------------------------------
-  */
-
   if (data === "admin:products") {
-    const admin =
-      await isAdmin(
-        env,
-        telegramId
-      );
-
-    if (!admin) {
-      return;
-    }
-
     await showAdminProducts(
       env,
       chatId,
@@ -294,27 +262,10 @@ async function handleCallback(
     return;
   }
 
-
-  /*
-  |--------------------------------------------------------------------------
-  | ADMIN PRODUCT LIST
-  |--------------------------------------------------------------------------
-  */
-
   if (
     data ===
     "admin:product:list"
   ) {
-    const admin =
-      await isAdmin(
-        env,
-        telegramId
-      );
-
-    if (!admin) {
-      return;
-    }
-
     await showProductList(
       env,
       chatId,
@@ -324,17 +275,83 @@ async function handleCallback(
     return;
   }
 
+  if (
+    data === "admin:messages"
+  ) {
+    await showMessageMenu(
+      env,
+      chatId,
+      messageId
+    );
 
-  /*
-  |--------------------------------------------------------------------------
-  | USER PRODUCT
-  |--------------------------------------------------------------------------
-  */
+    return;
+  }
 
   if (
     data.startsWith(
-      "product:"
+      "admin:message:edit:"
     )
+  ) {
+    const type =
+      data.replace(
+        "admin:message:edit:",
+        ""
+      );
+
+    await startMessageEdit(
+      env,
+      chatId,
+      messageId,
+      type
+    );
+
+    return;
+  }
+
+  if (
+    data.startsWith(
+      "admin:message:default:"
+    )
+  ) {
+    const type =
+      data.replace(
+        "admin:message:default:",
+        ""
+      );
+
+    await restoreDefault(
+      env,
+      chatId,
+      messageId,
+      type
+    );
+
+    return;
+  }
+
+  if (
+    data.startsWith(
+      "admin:message:"
+    )
+  ) {
+    const type =
+      data.replace(
+        "admin:message:",
+        ""
+      );
+
+    await showMessageEditor(
+      env,
+      chatId,
+      messageId,
+      type
+    );
+
+    return;
+  }
+
+  if (
+    data.startsWith("product:")
   ) {
     const productId =
       data.split(":")[1];
@@ -344,6 +361,16 @@ async function handleCallback(
       chatId,
       messageId,
       productId
+    );
+
+    return;
+  }
+
+  if (data === "user:menu") {
+    await showMainMenu(
+      env,
+      chatId,
+      messageId
     );
 
     return;
