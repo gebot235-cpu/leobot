@@ -4,8 +4,8 @@ import {
 } from "./user/menu.js";
 
 import {
-  answerCallback,
   sendMessage,
+  answerCallback,
 } from "./telegram.js";
 
 import {
@@ -15,6 +15,7 @@ import {
 
 import {
   showAdminProducts,
+  showProductList,
 } from "./admin/products.js";
 
 
@@ -22,15 +23,24 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
+    // Health check
     if (
       request.method === "GET" &&
       url.pathname === "/"
     ) {
       return new Response(
-        "LeoBot is online ✅"
+        "LeoBot is online ✅",
+        {
+          status: 200,
+          headers: {
+            "content-type":
+              "text/plain; charset=UTF-8",
+          },
+        }
       );
     }
 
+    // Telegram webhook
     if (
       request.method === "POST" &&
       url.pathname === "/telegram"
@@ -46,19 +56,33 @@ export default {
 
         return new Response("OK");
       } catch (error) {
-        console.error(error);
+        console.error(
+          "Webhook error:",
+          error
+        );
 
+        // Tetap balas OK ke Telegram
+        // supaya Telegram tidak terus
+        // mengirim ulang update.
         return new Response("OK");
       }
     }
 
     return new Response(
       "Not Found",
-      { status: 404 }
+      {
+        status: 404,
+      }
     );
   },
 };
 
+
+/*
+|--------------------------------------------------------------------------
+| UPDATE HANDLER
+|--------------------------------------------------------------------------
+*/
 
 async function handleUpdate(
   update,
@@ -80,6 +104,12 @@ async function handleUpdate(
 }
 
 
+/*
+|--------------------------------------------------------------------------
+| MESSAGE HANDLER
+|--------------------------------------------------------------------------
+*/
+
 async function handleMessage(
   message,
   env
@@ -90,35 +120,97 @@ async function handleMessage(
   const text =
     message.text || "";
 
+  /*
+  |--------------------------------------------------------------------------
+  | USER
+  |--------------------------------------------------------------------------
+  */
+
   if (text === "/start") {
     await showMainMenu(
       env,
       chatId
     );
+
     return;
   }
 
+
+  /*
+  |--------------------------------------------------------------------------
+  | ADMIN
+  |--------------------------------------------------------------------------
+  */
+
   if (text === "/admin") {
-    if (
+    const admin =
       await isAdmin(
         env,
         message.from.id
-      )
-    ) {
-      await showAdminMenu(
-        env,
-        chatId
       );
-    } else {
+
+    if (!admin) {
       await sendMessage(
         env,
         chatId,
         "❌ Akses ditolak."
       );
+
+      return;
     }
+
+    await sendMessage(
+      env,
+      chatId,
+`👑 LEOBOT ADMIN
+
+Kelola toko:`,
+
+      [
+        [
+          {
+            text: "📦 PRODUK",
+            callback_data:
+              "admin:products",
+          },
+        ],
+
+        [
+          {
+            text: "💳 PEMBAYARAN",
+            callback_data:
+              "admin:payment",
+          },
+        ],
+
+        [
+          {
+            text: "📢 CHANNEL VIP",
+            callback_data:
+              "admin:channel",
+          },
+        ],
+
+        [
+          {
+            text: "⚙️ PENGATURAN",
+            callback_data:
+              "admin:settings",
+          },
+        ],
+      ]
+    );
+
+    return;
   }
 }
 
+
+/*
+|--------------------------------------------------------------------------
+| CALLBACK HANDLER
+|--------------------------------------------------------------------------
+*/
 
 async function handleCallback(
   callback,
@@ -127,51 +219,122 @@ async function handleCallback(
   const data =
     callback.data || "";
 
+  const chatId =
+    callback.message.chat.id;
+
+  const messageId =
+    callback.message.message_id;
+
+  const telegramId =
+    callback.from.id;
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | STOP LOADING BUTTON
+  |--------------------------------------------------------------------------
+  */
+
   await answerCallback(
     env,
     callback.id
   );
 
-  const chatId =
-    callback.message.chat.id;
 
-  const telegramId =
-    callback.from.id;
+  /*
+  |--------------------------------------------------------------------------
+  | ADMIN MENU
+  |--------------------------------------------------------------------------
+  */
 
   if (data === "admin:menu") {
-    if (
+    const admin =
       await isAdmin(
         env,
         telegramId
-      )
-    ) {
-      await showAdminMenu(
-        env,
-        chatId
       );
+
+    if (!admin) {
+      return;
     }
+
+    await showAdminMenu(
+      env,
+      chatId,
+      messageId
+    );
 
     return;
   }
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | ADMIN PRODUCTS
+  |--------------------------------------------------------------------------
+  */
 
   if (data === "admin:products") {
-    if (
+    const admin =
       await isAdmin(
         env,
         telegramId
-      )
-    ) {
-      await showAdminProducts(
-        env,
-        chatId
       );
+
+    if (!admin) {
+      return;
     }
+
+    await showAdminProducts(
+      env,
+      chatId,
+      messageId
+    );
 
     return;
   }
 
+
+  /*
+  |--------------------------------------------------------------------------
+  | ADMIN PRODUCT LIST
+  |--------------------------------------------------------------------------
+  */
+
   if (
-    data.startsWith("product:")
+    data ===
+    "admin:product:list"
+  ) {
+    const admin =
+      await isAdmin(
+        env,
+        telegramId
+      );
+
+    if (!admin) {
+      return;
+    }
+
+    await showProductList(
+      env,
+      chatId,
+      messageId
+    );
+
+    return;
+  }
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | USER PRODUCT
+  |--------------------------------------------------------------------------
+  */
+
+  if (
+    data.startsWith(
+      "product:"
+    )
   ) {
     const productId =
       data.split(":")[1];
@@ -179,7 +342,10 @@ async function handleCallback(
     await showProduct(
       env,
       chatId,
+      messageId,
       productId
     );
+
+    return;
   }
 }
