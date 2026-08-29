@@ -20,7 +20,7 @@ export async function showAdminProducts(
     env,
     chatId,
     messageId,
-`📦 PRODUK
+    `📦 PRODUK
 
 Total produk: ${products.length}`,
     [
@@ -95,7 +95,10 @@ export async function showProductDetail(
 ) {
   await deleteState(env, chatId);
 
-  const product = await getProduct(env, productId);
+  const product = await getProduct(
+    env,
+    productId
+  );
 
   if (!product) {
     return editMessage(
@@ -114,8 +117,7 @@ export async function showProductDetail(
     );
   }
 
-  let text =
-`📦 ${product.name}
+  let text = `📦 ${product.name}
 
 💰 Rp${Number(product.price || 0).toLocaleString("id-ID")}
 
@@ -193,29 +195,48 @@ export async function showProductEdit(
 ) {
   await deleteState(env, chatId);
 
-  const product = await getProduct(env, productId);
+  const product = await getProduct(
+    env,
+    productId
+  );
 
   if (!product) {
-    return;
+    return editMessage(
+      env,
+      chatId,
+      messageId,
+      "❌ Produk tidak ditemukan.",
+      [
+        [
+          {
+            text: "◀️ KEMBALI",
+            callback_data: "admin:product:list",
+          },
+        ],
+      ]
+    );
   }
 
   const buttons = [
     [
       {
         text: "📝 NAMA",
-        callback_data: `admin:product:field:name:${product.id}`,
+        callback_data:
+          `admin:product:field:name:${product.id}`,
       },
     ],
     [
       {
         text: "📄 DESKRIPSI",
-        callback_data: `admin:product:field:description:${product.id}`,
+        callback_data:
+          `admin:product:field:description:${product.id}`,
       },
     ],
     [
       {
         text: "💰 HARGA",
-        callback_data: `admin:product:field:price:${product.id}`,
+        callback_data:
+          `admin:product:field:price:${product.id}`,
       },
     ],
   ];
@@ -224,14 +245,16 @@ export async function showProductEdit(
     buttons.push([
       {
         text: "⏳ DURASI",
-        callback_data: `admin:product:field:duration_days:${product.id}`,
+        callback_data:
+          `admin:product:field:duration_days:${product.id}`,
       },
     ]);
 
     buttons.push([
       {
         text: "📢 CHANNEL",
-        callback_data: `admin:product:channels:${product.id}`,
+        callback_data:
+          `admin:product:channels:${product.id}`,
       },
     ]);
   }
@@ -239,7 +262,8 @@ export async function showProductEdit(
   buttons.push([
     {
       text: "◀️ KEMBALI",
-      callback_data: `admin:product:view:${product.id}`,
+      callback_data:
+        `admin:product:view:${product.id}`,
     },
   ]);
 
@@ -247,7 +271,7 @@ export async function showProductEdit(
     env,
     chatId,
     messageId,
-`✏️ EDIT PRODUK
+    `✏️ EDIT PRODUK
 
 📦 ${product.name}
 
@@ -263,7 +287,10 @@ export async function startProductFieldEdit(
   productId,
   field
 ) {
-  const product = await getProduct(env, productId);
+  const product = await getProduct(
+    env,
+    productId
+  );
 
   if (!product) {
     return;
@@ -297,7 +324,7 @@ export async function startProductFieldEdit(
     env,
     chatId,
     messageId,
-`✏️ EDIT ${label}
+    `✏️ EDIT ${label}
 
 Produk:
 ${product.name}
@@ -307,7 +334,8 @@ Kirim nilai baru:`,
       [
         {
           text: "❌ BATAL",
-          callback_data: `admin:product:cancel:${product.id}`,
+          callback_data:
+            `admin:product:cancel:${product.id}`,
         },
       ],
     ]
@@ -347,14 +375,15 @@ export async function handleProductInput(
         env,
         message.chat.id,
         state.message_id,
-`❌ Nilai tidak valid.
+        `❌ Nilai tidak valid.
 
 Kirim angka saja.`,
         [
           [
             {
               text: "❌ BATAL",
-              callback_data: `admin:product:cancel:${state.product_id}`,
+              callback_data:
+                `admin:product:cancel:${state.product_id}`,
             },
           ],
         ]
@@ -365,7 +394,28 @@ Kirim angka saja.`,
 
     const number = Number(value);
 
-    if (!Number.isSafeInteger(number) || number <= 0) {
+    if (
+      !Number.isSafeInteger(number) ||
+      number <= 0
+    ) {
+      await editMessage(
+        env,
+        message.chat.id,
+        state.message_id,
+        `❌ Nilai tidak valid.
+
+Kirim angka positif yang valid.`,
+        [
+          [
+            {
+              text: "❌ BATAL",
+              callback_data:
+                `admin:product:cancel:${state.product_id}`,
+            },
+          ],
+        ]
+      );
+
       return true;
     }
 
@@ -383,7 +433,7 @@ Kirim angka saja.`,
 
   await deleteState(
     env,
-    message.from.id
+    message.chat.id
   );
 
   await deleteInput(
@@ -418,26 +468,29 @@ export async function startAddProduct(
     env,
     chatId,
     messageId,
-`➕ TAMBAH PRODUK
+    `➕ TAMBAH PRODUK
 
 Pilih jenis produk:`,
     [
       [
         {
           text: "🟢 VIP",
-          callback_data: "admin:product:add:type:VIP",
+          callback_data:
+            "admin:product:add:type:VIP",
         },
       ],
       [
         {
           text: "📦 DIGITAL",
-          callback_data: "admin:product:add:type:DIGITAL",
+          callback_data:
+            "admin:product:add:type:DIGITAL",
         },
       ],
       [
         {
           text: "❌ BATAL",
-          callback_data: "admin:product:cancel",
+          callback_data:
+            "admin:product:cancel",
         },
       ],
     ]
@@ -472,7 +525,7 @@ export async function selectAddProductType(
     env,
     chatId,
     messageId,
-`➕ TAMBAH ${type}
+    `➕ TAMBAH ${type}
 
 Langkah 1
 
@@ -481,7 +534,8 @@ Kirim nama produk:`,
       [
         {
           text: "❌ BATAL",
-          callback_data: "admin:product:cancel",
+          callback_data:
+            "admin:product:cancel",
         },
       ],
     ]
@@ -499,6 +553,8 @@ export async function handleAddProductInput(
     return true;
   }
 
+  const chatId = message.chat.id;
+
   if (state.step === "NAME") {
     const nextState = {
       ...state,
@@ -508,7 +564,7 @@ export async function handleAddProductInput(
 
     await updateState(
       env,
-      message.from.id,
+      chatId,
       nextState
     );
 
@@ -519,9 +575,9 @@ export async function handleAddProductInput(
 
     return editMessage(
       env,
-      message.chat.id,
+      chatId,
       state.message_id,
-`➕ TAMBAH ${state.product_type}
+      `➕ TAMBAH ${state.product_type}
 
 Langkah 2
 
@@ -533,13 +589,15 @@ Kirim deskripsi produk:`,
         [
           {
             text: "⏭️ LEWATI",
-            callback_data: "admin:product:add:skip:description",
+            callback_data:
+              "admin:product:add:skip:description",
           },
         ],
         [
           {
             text: "❌ BATAL",
-            callback_data: "admin:product:cancel",
+            callback_data:
+              "admin:product:cancel",
           },
         ],
       ]
@@ -555,7 +613,7 @@ Kirim deskripsi produk:`,
 
     await updateState(
       env,
-      message.from.id,
+      chatId,
       nextState
     );
 
@@ -566,9 +624,9 @@ Kirim deskripsi produk:`,
 
     return editMessage(
       env,
-      message.chat.id,
+      chatId,
       state.message_id,
-`➕ TAMBAH ${state.product_type}
+      `➕ TAMBAH ${state.product_type}
 
 Langkah 3
 
@@ -580,7 +638,8 @@ Contoh:
         [
           {
             text: "❌ BATAL",
-            callback_data: "admin:product:cancel",
+            callback_data:
+              "admin:product:cancel",
           },
         ],
       ]
@@ -591,9 +650,9 @@ Contoh:
     if (!/^\d+$/.test(value)) {
       return editMessage(
         env,
-        message.chat.id,
+        chatId,
         state.message_id,
-`❌ Harga tidak valid.
+        `❌ Harga tidak valid.
 
 Kirim harga dalam angka.
 
@@ -603,17 +662,37 @@ Contoh:
           [
             {
               text: "❌ BATAL",
-              callback_data: "admin:product:cancel",
+              callback_data:
+                "admin:product:cancel",
             },
-          },
+          ],
         ]
       );
     }
 
     const price = Number(value);
 
-    if (!Number.isSafeInteger(price) || price <= 0) {
-      return true;
+    if (
+      !Number.isSafeInteger(price) ||
+      price <= 0
+    ) {
+      return editMessage(
+        env,
+        chatId,
+        state.message_id,
+        `❌ Harga tidak valid.
+
+Kirim angka positif yang valid.`,
+        [
+          [
+            {
+              text: "❌ BATAL",
+              callback_data:
+                "admin:product:cancel",
+            },
+          ],
+        ]
+      );
     }
 
     const nextState = {
@@ -627,7 +706,7 @@ Contoh:
 
     await updateState(
       env,
-      message.from.id,
+      chatId,
       nextState
     );
 
@@ -639,9 +718,9 @@ Contoh:
     if (state.product_type === "VIP") {
       return editMessage(
         env,
-        message.chat.id,
+        chatId,
         state.message_id,
-`➕ TAMBAH VIP
+        `➕ TAMBAH VIP
 
 Langkah 4
 
@@ -653,7 +732,8 @@ Contoh:
           [
             {
               text: "❌ BATAL",
-              callback_data: "admin:product:cancel",
+              callback_data:
+                "admin:product:cancel",
             },
           ],
         ]
@@ -662,7 +742,7 @@ Contoh:
 
     return showAddConfirmation(
       env,
-      message.chat.id,
+      chatId,
       state.message_id,
       nextState
     );
@@ -672,9 +752,9 @@ Contoh:
     if (!/^\d+$/.test(value)) {
       return editMessage(
         env,
-        message.chat.id,
+        chatId,
         state.message_id,
-`❌ Durasi tidak valid.
+        `❌ Durasi tidak valid.
 
 Kirim jumlah hari.
 
@@ -684,7 +764,8 @@ Contoh:
           [
             {
               text: "❌ BATAL",
-              callback_data: "admin:product:cancel",
+              callback_data:
+                "admin:product:cancel",
             },
           ],
         ]
@@ -693,8 +774,27 @@ Contoh:
 
     const duration = Number(value);
 
-    if (!Number.isSafeInteger(duration) || duration <= 0) {
-      return true;
+    if (
+      !Number.isSafeInteger(duration) ||
+      duration <= 0
+    ) {
+      return editMessage(
+        env,
+        chatId,
+        state.message_id,
+        `❌ Durasi tidak valid.
+
+Kirim angka hari yang valid.`,
+        [
+          [
+            {
+              text: "❌ BATAL",
+              callback_data:
+                "admin:product:cancel",
+            },
+          ],
+        ]
+      );
     }
 
     const nextState = {
@@ -707,7 +807,7 @@ Contoh:
 
     await updateState(
       env,
-      message.from.id,
+      chatId,
       nextState
     );
 
@@ -718,7 +818,7 @@ Contoh:
 
     return showChannelSelector(
       env,
-      message.chat.id,
+      chatId,
       state.message_id,
       nextState
     );
@@ -732,7 +832,10 @@ export async function skipDescription(
   chatId,
   messageId
 ) {
-  const state = await getState(env, chatId);
+  const state = await getState(
+    env,
+    chatId
+  );
 
   if (!state) {
     return;
@@ -754,7 +857,7 @@ export async function skipDescription(
     env,
     chatId,
     messageId,
-`➕ TAMBAH ${state.product_type}
+    `➕ TAMBAH ${state.product_type}
 
 Langkah 3
 
@@ -766,7 +869,8 @@ Contoh:
       [
         {
           text: "❌ BATAL",
-          callback_data: "admin:product:cancel",
+          callback_data:
+            "admin:product:cancel",
         },
       ],
     ]
@@ -779,27 +883,31 @@ async function showChannelSelector(
   messageId,
   state
 ) {
-  const channels = await getChannels(env);
+  const channels = await getChannels(
+    env
+  );
 
   if (!channels.length) {
     return editMessage(
       env,
       chatId,
       messageId,
-`❌ BELUM ADA CHANNEL
+      `❌ BELUM ADA CHANNEL
 
 Tambahkan channel VIP terlebih dahulu.`,
       [
         [
           {
             text: "📢 CHANNEL VIP",
-            callback_data: "admin:channel",
+            callback_data:
+              "admin:channel",
           },
         ],
         [
           {
             text: "❌ BATAL",
-            callback_data: "admin:product:cancel",
+            callback_data:
+              "admin:product:cancel",
           },
         ],
       ]
@@ -838,19 +946,23 @@ async function renderChannelSelector(
   const selected =
     state.selected_channels || [];
 
-  const buttons = channels.map((channel) => {
-    const active =
-      selected.includes(Number(channel.id));
+  const buttons = channels.map(
+    (channel) => {
+      const active =
+        selected.includes(
+          Number(channel.id)
+        );
 
-    return [
-      {
-        text:
-          `${active ? "☑️" : "☐"} ${channel.name || channel.channel_id}`,
-        callback_data:
-          `admin:product:channel:toggle:${channel.id}`,
-      },
-    ];
-  });
+      return [
+        {
+          text:
+            `${active ? "☑️" : "☐"} ${channel.name || channel.channel_id}`,
+          callback_data:
+            `admin:product:channel:toggle:${channel.id}`,
+        },
+      ];
+    }
+  );
 
   buttons.push([
     {
@@ -872,7 +984,7 @@ async function renderChannelSelector(
     env,
     chatId,
     messageId,
-`📢 PILIH CHANNEL
+    `📢 PILIH CHANNEL
 
 Pilih satu atau beberapa channel untuk produk ini.
 
@@ -887,7 +999,10 @@ export async function toggleProductChannel(
   messageId,
   channelId
 ) {
-  const state = await getState(env, chatId);
+  const state = await getState(
+    env,
+    chatId
+  );
 
   if (!state) {
     return;
@@ -899,7 +1014,8 @@ export async function toggleProductChannel(
 
   const id = Number(channelId);
 
-  const index = selected.indexOf(id);
+  const index =
+    selected.indexOf(id);
 
   if (index === -1) {
     selected.push(id);
@@ -919,7 +1035,8 @@ export async function toggleProductChannel(
     nextState
   );
 
-  const channels = await getChannels(env);
+  const channels =
+    await getChannels(env);
 
   return renderChannelSelector(
     env,
@@ -935,14 +1052,20 @@ export async function saveProductChannels(
   chatId,
   messageId
 ) {
-  const state = await getState(env, chatId);
+  const state = await getState(
+    env,
+    chatId
+  );
 
   if (!state) {
     return;
   }
 
-  if (!state.selected_channels?.length) {
-    const channels = await getChannels(env);
+  if (
+    !state.selected_channels?.length
+  ) {
+    const channels =
+      await getChannels(env);
 
     return renderChannelSelector(
       env,
@@ -978,8 +1101,7 @@ async function showAddConfirmation(
   messageId,
   state
 ) {
-  let text =
-`➕ KONFIRMASI PRODUK
+  let text = `➕ KONFIRMASI PRODUK
 
 📦 ${state.name}
 
@@ -990,22 +1112,25 @@ async function showAddConfirmation(
   if (state.product_type === "VIP") {
     text += `\n⏳ ${state.duration_days} hari`;
 
-    const channels = await getChannelsByIds(
-      env,
-      state.selected_channels || []
-    );
+    const channels =
+      await getChannelsByIds(
+        env,
+        state.selected_channels || []
+      );
 
     if (channels.length) {
       text += "\n\n📢 Channel:";
 
       for (const channel of channels) {
-        text += `\n• ${channel.name || channel.channel_id}`;
+        text +=
+          `\n• ${channel.name || channel.channel_id}`;
       }
     }
   }
 
   if (state.description) {
-    text += `\n\n📝 ${state.description}`;
+    text +=
+      `\n\n📝 ${state.description}`;
   }
 
   return editMessage(
@@ -1037,7 +1162,10 @@ export async function saveNewProduct(
   chatId,
   messageId
 ) {
-  const state = await getState(env, chatId);
+  const state = await getState(
+    env,
+    chatId
+  );
 
   if (!state) {
     return;
@@ -1102,9 +1230,12 @@ export async function saveNewProduct(
     );
   }
 
-  if (state.product_type === "VIP") {
+  if (
+    state.product_type === "VIP"
+  ) {
     for (
-      const channelId of state.selected_channels
+      const channelId of
+      state.selected_channels
     ) {
       await supabase(
         env,
@@ -1129,7 +1260,7 @@ export async function saveNewProduct(
     env,
     chatId,
     messageId,
-`✅ PRODUK TERSIMPAN
+    `✅ PRODUK TERSIMPAN
 
 📦 ${state.name}
 
@@ -1159,12 +1290,16 @@ export async function showProductChannels(
   messageId,
   productId
 ) {
-  await deleteState(env, chatId);
-
-  const product = await getProduct(
+  await deleteState(
     env,
-    productId
+    chatId
   );
+
+  const product =
+    await getProduct(
+      env,
+      productId
+    );
 
   if (
     !product ||
@@ -1181,7 +1316,7 @@ export async function showProductChannels(
       env,
       chatId,
       messageId,
-`❌ BELUM ADA CHANNEL
+      `❌ BELUM ADA CHANNEL
 
 Tambahkan channel VIP terlebih dahulu.`,
       [
@@ -1232,21 +1367,23 @@ async function renderEditChannelSelector(
   channels,
   selected
 ) {
-  const buttons = channels.map((channel) => {
-    const active =
-      selected.includes(
-        Number(channel.id)
-      );
+  const buttons = channels.map(
+    (channel) => {
+      const active =
+        selected.includes(
+          Number(channel.id)
+        );
 
-    return [
-      {
-        text:
-          `${active ? "☑️" : "☐"} ${channel.name || channel.channel_id}`,
-        callback_data:
-          `admin:product:editchannel:toggle:${product.id}:${channel.id}`,
-      },
-    ];
-  });
+      return [
+        {
+          text:
+            `${active ? "☑️" : "☐"} ${channel.name || channel.channel_id}`,
+          callback_data:
+            `admin:product:editchannel:toggle:${product.id}:${channel.id}`,
+        },
+      ];
+    }
+  );
 
   buttons.push([
     {
@@ -1283,7 +1420,7 @@ async function renderEditChannelSelector(
     env,
     chatId,
     messageId,
-`📢 CHANNEL PRODUK
+    `📢 CHANNEL PRODUK
 
 ${product.name}
 
@@ -1313,8 +1450,7 @@ export async function toggleEditProductChannel(
     ...(state.selected_channels || []),
   ];
 
-  const id =
-    Number(channelId);
+  const id = Number(channelId);
 
   const index =
     selected.indexOf(id);
@@ -1387,8 +1523,7 @@ export async function saveEditProductChannels(
       [
         [
           {
-            text:
-              "📢 PILIH CHANNEL",
+            text: "📢 PILIH CHANNEL",
             callback_data:
               `admin:product:channels:${productId}`,
           },
@@ -1446,7 +1581,10 @@ export async function toggleProduct(
   messageId,
   productId
 ) {
-  await deleteState(env, chatId);
+  await deleteState(
+    env,
+    chatId
+  );
 
   const product =
     await getProduct(
@@ -1483,7 +1621,10 @@ export async function confirmDeleteProduct(
   messageId,
   productId
 ) {
-  await deleteState(env, chatId);
+  await deleteState(
+    env,
+    chatId
+  );
 
   const product =
     await getProduct(
@@ -1499,7 +1640,7 @@ export async function confirmDeleteProduct(
     env,
     chatId,
     messageId,
-`🗑️ HAPUS PRODUK
+    `🗑️ HAPUS PRODUK
 
 ${product.name}
 
@@ -1603,11 +1744,10 @@ async function getProduct(
   env,
   productId
 ) {
-  const rows =
-    await supabase(
-      env,
-      `products?id=eq.${productId}&limit=1`
-    );
+  const rows = await supabase(
+    env,
+    `products?id=eq.${productId}&limit=1`
+  );
 
   return rows?.[0] || null;
 }
@@ -1655,12 +1795,11 @@ async function getChannelsByIds(
     return [];
   }
 
-  const cleanIds =
-    ids
-      .map(Number)
-      .filter(
-        Number.isSafeInteger
-      );
+  const cleanIds = ids
+    .map(Number)
+    .filter(
+      Number.isSafeInteger
+    );
 
   if (!cleanIds.length) {
     return [];
@@ -1689,15 +1828,14 @@ async function getProductChannels(
     return [];
   }
 
-  const ids =
-    rows
-      .map(
-        (row) =>
-          Number(row.channel_id)
-      )
-      .filter(
-        Number.isSafeInteger
-      );
+  const ids = rows
+    .map(
+      (row) =>
+        Number(row.channel_id)
+    )
+    .filter(
+      Number.isSafeInteger
+    );
 
   return getChannelsByIds(
     env,
@@ -1709,11 +1847,10 @@ async function getState(
   env,
   telegramId
 ) {
-  const rows =
-    await supabase(
-      env,
-      `settings?key=eq.admin_state_${telegramId}&limit=1`
-    );
+  const rows = await supabase(
+    env,
+    `settings?key=eq.admin_state_${telegramId}&limit=1`
+  );
 
   if (!rows?.length) {
     return null;
@@ -1790,5 +1927,6 @@ async function deleteInput(
       message.message_id
     );
   } catch {
+    // Ignore delete errors.
   }
 }
