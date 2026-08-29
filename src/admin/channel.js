@@ -117,8 +117,7 @@ export async function handleChannelInput(
       message.chat.id,
 `❌ Channel ID tidak valid.
 
-Gunakan format seperti:
-
+Contoh:
 -1001234567890`
     );
 
@@ -180,9 +179,6 @@ Pastikan Channel ID benar dan LeoBot sudah menjadi admin channel.`
     return true;
   }
 
-  const botId =
-    me.result.id;
-
   const member =
     await telegramRequest(
       env,
@@ -191,7 +187,7 @@ Pastikan Channel ID benar dan LeoBot sudah menjadi admin channel.`
         chat_id:
           channelId,
         user_id:
-          botId,
+          me.result.id,
       }
     );
 
@@ -199,9 +195,9 @@ Pastikan Channel ID benar dan LeoBot sudah menjadi admin channel.`
     await sendMessage(
       env,
       message.chat.id,
-`❌ Gagal memeriksa status LeoBot di channel.
+`❌ Gagal memeriksa status LeoBot.
 
-Pastikan LeoBot sudah ditambahkan sebagai admin.`
+Pastikan LeoBot sudah menjadi admin channel.`
     );
 
     return true;
@@ -230,39 +226,83 @@ Tambahkan LeoBot sebagai admin terlebih dahulu.`
       `vip_channels?channel_id=eq.${channelId}&limit=1`
     );
 
-  if (existing.length) {
-    await sendMessage(
+  if (
+    existing &&
+    existing.length > 0
+  ) {
+    await deleteState(
       env,
-      message.chat.id,
-      "⚠️ Channel tersebut sudah terdaftar."
+      message.from.id
     );
 
-    return true;
+    await deleteMessage(
+      env,
+      message.chat.id,
+      message.message_id
+    );
+
+    return editMessage(
+      env,
+      message.chat.id,
+      state.message_id,
+`⚠️ CHANNEL SUDAH TERDAFTAR
+
+📢 ${existing[0].name || "Channel VIP"}
+
+🆔 ${existing[0].channel_id}`,
+
+      [
+        [
+          {
+            text: "📢 CHANNEL VIP",
+            callback_data:
+              "admin:channel",
+          },
+        ],
+        [
+          {
+            text: "◀️ ADMIN",
+            callback_data:
+              "admin:menu",
+          },
+        },
+      ]
+    );
   }
 
-  const result =
+  await supabase(
+    env,
+    "vip_channels",
+    "POST",
+    {
+      channel_id:
+        channelId,
+      name:
+        chat.result.title ||
+        "Channel VIP",
+      is_active:
+        true,
+      created_at:
+        new Date().toISOString(),
+      updated_at:
+        new Date().toISOString(),
+    }
+  );
+
+  const saved =
     await supabase(
       env,
-      "vip_channels",
-      "POST",
-      {
-        channel_id:
-          channelId,
-        name:
-          chat.result.title ||
-          "Channel VIP",
-        is_active:
-          true,
-        updated_at:
-          new Date().toISOString(),
-      }
+      `vip_channels?channel_id=eq.${channelId}&limit=1`
     );
 
-  if (!result) {
+  if (
+    !saved ||
+    saved.length === 0
+  ) {
     await sendMessage(
       env,
       message.chat.id,
-      "❌ Gagal menyimpan channel."
+      "❌ Channel gagal disimpan ke database."
     );
 
     return true;
@@ -285,9 +325,9 @@ Tambahkan LeoBot sebagai admin terlebih dahulu.`
     state.message_id,
 `✅ CHANNEL TERSIMPAN
 
-📢 ${chat.result.title || "Channel VIP"}
+📢 ${saved[0].name || "Channel VIP"}
 
-🆔 ${channelId}`,
+🆔 ${saved[0].channel_id}`,
 
     [
       [
