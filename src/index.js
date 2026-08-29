@@ -5,7 +5,17 @@ import {
 
 import {
   answerCallback,
+  sendMessage,
 } from "./telegram.js";
+
+import {
+  isAdmin,
+  showAdminMenu,
+} from "./admin/menu.js";
+
+import {
+  showAdminProducts,
+} from "./admin/products.js";
 
 
 export default {
@@ -85,6 +95,27 @@ async function handleMessage(
       env,
       chatId
     );
+    return;
+  }
+
+  if (text === "/admin") {
+    if (
+      await isAdmin(
+        env,
+        message.from.id
+      )
+    ) {
+      await showAdminMenu(
+        env,
+        chatId
+      );
+    } else {
+      await sendMessage(
+        env,
+        chatId,
+        "❌ Akses ditolak."
+      );
+    }
   }
 }
 
@@ -101,6 +132,44 @@ async function handleCallback(
     callback.id
   );
 
+  const chatId =
+    callback.message.chat.id;
+
+  const telegramId =
+    callback.from.id;
+
+  if (data === "admin:menu") {
+    if (
+      await isAdmin(
+        env,
+        telegramId
+      )
+    ) {
+      await showAdminMenu(
+        env,
+        chatId
+      );
+    }
+
+    return;
+  }
+
+  if (data === "admin:products") {
+    if (
+      await isAdmin(
+        env,
+        telegramId
+      )
+    ) {
+      await showAdminProducts(
+        env,
+        chatId
+      );
+    }
+
+    return;
+  }
+
   if (
     data.startsWith("product:")
   ) {
@@ -109,7 +178,7 @@ async function handleCallback(
 
     await showProduct(
       env,
-      callback.message.chat.id,
+      chatId,
       productId
     );
   }
