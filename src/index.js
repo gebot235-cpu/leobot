@@ -31,6 +31,12 @@ import {
 } from "./admin/products.js";
 
 import {
+  showChannelMenu,
+  startAddChannel,
+  handleChannelInput,
+} from "./admin/channel.js";
+
+import {
   showMessageMenu,
   showMessageEditor,
   startMessageEdit,
@@ -160,6 +166,19 @@ async function handleMessage(
         "ADD_PRODUCT"
       ) {
         await handleAddProductInput(
+          env,
+          message,
+          state
+        );
+
+        return;
+      }
+
+      if (
+        state.type ===
+        "ADD_CHANNEL"
+      ) {
+        await handleChannelInput(
           env,
           message,
           state
@@ -501,6 +520,31 @@ async function handleCallback(
       chatId,
       messageId,
       productId
+    );
+
+    return;
+  }
+
+  if (
+    data === "admin:channel"
+  ) {
+    await showChannelMenu(
+      env,
+      chatId,
+      messageId
+    );
+
+    return;
+  }
+
+  if (
+    data ===
+    "admin:channel:add"
+  ) {
+    await startAddChannel(
+      env,
+      chatId,
+      messageId
     );
 
     return;
