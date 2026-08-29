@@ -28,11 +28,6 @@ import {
   handleAddProductInput,
   skipDescription,
   saveNewProduct,
-  showProductChannels,
-  toggleProductChannel,
-  saveProductChannels,
-  toggleEditProductChannel,
-  saveEditProductChannels,
 } from "./admin/products.js";
 
 import {
@@ -49,10 +44,6 @@ import {
   restoreDefault,
   getState,
 } from "./admin/messages.js";
-
-import {
-  supabase,
-} from "./supabase.js";
 
 
 export default {
@@ -92,7 +83,9 @@ export default {
 
     return new Response(
       "Not Found",
-      { status: 404 }
+      {
+        status: 404,
+      }
     );
   },
 };
@@ -225,9 +218,49 @@ async function handleMessage(
       return;
     }
 
-    await showAdminMenu(
+    await sendMessage(
       env,
-      chatId
+      chatId,
+`👑 LEOBOT ADMIN
+
+Kelola toko:`,
+      [
+        [
+          {
+            text: "📦 PRODUK",
+            callback_data:
+              "admin:products",
+          },
+        ],
+        [
+          {
+            text: "💳 PEMBAYARAN",
+            callback_data:
+              "admin:payment",
+          },
+        ],
+        [
+          {
+            text: "📢 CHANNEL VIP",
+            callback_data:
+              "admin:channel",
+          },
+        ],
+        [
+          {
+            text: "✏️ PESAN BOT",
+            callback_data:
+              "admin:messages",
+          },
+        ],
+        [
+          {
+            text: "⚙️ PENGATURAN",
+            callback_data:
+              "admin:settings",
+          },
+        ],
+      ]
     );
 
     return;
@@ -241,6 +274,12 @@ async function handleCallback(
 ) {
   const data =
     callback.data || "";
+
+  if (
+    !callback.message
+  ) {
+    return;
+  }
 
   const chatId =
     callback.message.chat.id;
@@ -271,14 +310,8 @@ async function handleCallback(
   }
 
   if (
-    data ===
-    "admin:cancel"
+    data === "admin:menu"
   ) {
-    await clearState(
-      env,
-      telegramId
-    );
-
     await showAdminMenu(
       env,
       chatId,
@@ -289,14 +322,8 @@ async function handleCallback(
   }
 
   if (
-    data ===
-    "admin:product:cancel"
+    data === "admin:products"
   ) {
-    await clearState(
-      env,
-      telegramId
-    );
-
     await showAdminProducts(
       env,
       chatId,
@@ -307,44 +334,7 @@ async function handleCallback(
   }
 
   if (
-    data ===
-    "admin:menu"
-  ) {
-    await clearState(
-      env,
-      telegramId
-    );
-
-    await showAdminMenu(
-      env,
-      chatId,
-      messageId
-    );
-
-    return;
-  }
-
-  if (
-    data ===
-    "admin:products"
-  ) {
-    await clearState(
-      env,
-      telegramId
-    );
-
-    await showAdminProducts(
-      env,
-      chatId,
-      messageId
-    );
-
-    return;
-  }
-
-  if (
-    data ===
-    "admin:product:add"
+    data === "admin:product:add"
   ) {
     await startAddProduct(
       env,
@@ -356,14 +346,8 @@ async function handleCallback(
   }
 
   if (
-    data ===
-    "admin:product:list"
+    data === "admin:product:list"
   ) {
-    await clearState(
-      env,
-      telegramId
-    );
-
     await showProductList(
       env,
       chatId,
@@ -421,94 +405,6 @@ async function handleCallback(
   }
 
   if (
-    data ===
-    "admin:product:channels:select"
-  ) {
-    await showProductChannels(
-      env,
-      chatId,
-      messageId,
-      await getStateProductId(
-        env,
-        telegramId
-      )
-    );
-
-    return;
-  }
-
-  if (
-    data.startsWith(
-      "admin:product:channel:toggle:"
-    )
-  ) {
-    const channelId =
-      data.replace(
-        "admin:product:channel:toggle:",
-        ""
-      );
-
-    await toggleProductChannel(
-      env,
-      chatId,
-      messageId,
-      channelId
-    );
-
-    return;
-  }
-
-  if (
-    data ===
-    "admin:product:channels:save"
-  ) {
-    await saveProductChannels(
-      env,
-      chatId,
-      messageId
-    );
-
-    return;
-  }
-
-  if (
-    data.startsWith(
-      "admin:product:editchannel:toggle:"
-    )
-  ) {
-    const parts =
-      data.split(":");
-
-    await toggleEditProductChannel(
-      env,
-      chatId,
-      messageId,
-      parts[4],
-      parts[5]
-    );
-
-    return;
-  }
-
-  if (
-    data.startsWith(
-      "admin:product:editchannel:save:"
-    )
-  ) {
-    const productId =
-      data.split(":")[4];
-
-    await saveEditProductChannels(
-      env,
-      chatId,
-      messageId,
-      productId
-    );
-
-    return;
-  }
-
-  if (
     data.startsWith(
       "admin:product:view:"
     )
@@ -518,11 +414,6 @@ async function handleCallback(
         "admin:product:view:",
         ""
       );
-
-    await clearState(
-      env,
-      telegramId
-    );
 
     await showProductDetail(
       env,
@@ -545,11 +436,6 @@ async function handleCallback(
         ""
       );
 
-    await clearState(
-      env,
-      telegramId
-    );
-
     await showProductEdit(
       env,
       chatId,
@@ -568,12 +454,18 @@ async function handleCallback(
     const parts =
       data.split(":");
 
+    const field =
+      parts[3];
+
+    const productId =
+      parts[4];
+
     await startProductFieldEdit(
       env,
       chatId,
       messageId,
-      parts[3],
-      parts[4]
+      productId,
+      field
     );
 
     return;
@@ -643,14 +535,8 @@ async function handleCallback(
   }
 
   if (
-    data ===
-    "admin:channel"
+    data === "admin:channel"
   ) {
-    await clearState(
-      env,
-      telegramId
-    );
-
     await showChannelMenu(
       env,
       chatId,
@@ -661,8 +547,7 @@ async function handleCallback(
   }
 
   if (
-    data ===
-    "admin:channel:add"
+    data === "admin:channel:add"
   ) {
     await startAddChannel(
       env,
@@ -674,14 +559,16 @@ async function handleCallback(
   }
 
   if (
-    data ===
-    "admin:messages"
+    data.startsWith(
+      "admin:channel:view:"
+    )
   ) {
-    await clearState(
-      env,
-      telegramId
-    );
+    return;
+  }
 
+  if (
+    data === "admin:messages"
+  ) {
     await showMessageMenu(
       env,
       chatId,
@@ -755,6 +642,30 @@ async function handleCallback(
   }
 
   if (
+    data === "admin:payment"
+  ) {
+    await showAdminMenu(
+      env,
+      chatId,
+      messageId
+    );
+
+    return;
+  }
+
+  if (
+    data === "admin:settings"
+  ) {
+    await showAdminMenu(
+      env,
+      chatId,
+      messageId
+    );
+
+    return;
+  }
+
+  if (
     data.startsWith("product:")
   ) {
     const productId =
@@ -781,30 +692,4 @@ async function handleCallback(
 
     return;
   }
-}
-
-
-async function clearState(
-  env,
-  telegramId
-) {
-  return supabase(
-    env,
-    `settings?key=eq.admin_state_${telegramId}`,
-    "DELETE"
-  );
-}
-
-
-async function getStateProductId(
-  env,
-  telegramId
-) {
-  const state =
-    await getState(
-      env,
-      telegramId
-    );
-
-  return state?.product_id;
 }
