@@ -219,7 +219,7 @@ export async function showMessageEditor(
     env,
     chatId,
     messageId,
-`✏️ ${config.name}
+    `✏️ ${config.name}
 
 Pesan saat ini:
 
@@ -299,10 +299,30 @@ Placeholder yang tersedia:
         {
           text: "❌ BATAL",
           callback_data:
-            `admin:message:${type}`,
+            `admin:message:cancel:${type}`,
         },
       ],
     ]
+  );
+}
+
+
+export async function cancelMessageEdit(
+  env,
+  chatId,
+  messageId,
+  type
+) {
+  await deleteState(
+    env,
+    chatId
+  );
+
+  return showMessageEditor(
+    env,
+    chatId,
+    messageId,
+    type
   );
 }
 
@@ -491,4 +511,4 @@ async function deleteState(
     `settings?key=eq.admin_state_${telegramId}`,
     "DELETE"
   );
-        }
+}
