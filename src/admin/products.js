@@ -7,96 +7,84 @@ import {
   supabase,
 } from "../supabase.js";
 
+
 export async function showAdminProducts(
   env,
   chatId,
   messageId
 ) {
-  const products =
-    await getAllProducts(env);
+  const products = await getAllProducts(env);
 
   return editMessage(
     env,
     chatId,
     messageId,
-    `📦 PRODUK
+`📦 PRODUK
 
 Total produk: ${products.length}`,
     [
       [
         {
           text: "➕ TAMBAH PRODUK",
-          callback_data:
-            "admin:product:add",
+          callback_data: "admin:product:add",
         },
       ],
       [
         {
           text: "📋 DAFTAR PRODUK",
-          callback_data:
-            "admin:product:list",
+          callback_data: "admin:product:list",
         },
       ],
       [
         {
           text: "◀️ KEMBALI",
-          callback_data:
-            "admin:menu",
+          callback_data: "admin:menu",
         },
       ],
     ]
   );
 }
 
+
 export async function showProductList(
   env,
   chatId,
   messageId
 ) {
-  const products =
-    await getAllProducts(env);
+  const products = await getAllProducts(env);
 
-  const buttons =
-    products.map(
-      (product) => [
-        {
-          text:
-            `${product.is_active ? "🟢" : "🔴"} ${product.name}`,
-          callback_data:
-            `admin:product:view:${product.id}`,
-        },
-      ]
-    );
+  const buttons = products.map((product) => [
+    {
+      text: `${product.is_active ? "🟢" : "🔴"} ${product.name}`,
+      callback_data: `admin:product:view:${product.id}`,
+    },
+  ]);
 
   buttons.push([
     {
       text: "➕ TAMBAH",
-      callback_data:
-        "admin:product:add",
+      callback_data: "admin:product:add",
     },
   ]);
 
   buttons.push([
     {
       text: "◀️ KEMBALI",
-      callback_data:
-        "admin:products",
+      callback_data: "admin:products",
     },
   ]);
-
-  const text =
-    products.length === 0
-      ? "📋 DAFTAR PRODUK\n\nBelum ada produk."
-      : "📋 DAFTAR PRODUK\n\nPilih produk:";
 
   return editMessage(
     env,
     chatId,
     messageId,
-    text,
+    products.length
+      ? "📋 DAFTAR PRODUK\n\nPilih produk:"
+      : "📋 DAFTAR PRODUK\n\nBelum ada produk.",
     buttons
   );
 }
+
 
 export async function showProductDetail(
   env,
@@ -104,11 +92,7 @@ export async function showProductDetail(
   messageId,
   productId
 ) {
-  const product =
-    await getProduct(
-      env,
-      productId
-    );
+  const product = await getProduct(env, productId);
 
   if (!product) {
     return editMessage(
@@ -120,8 +104,7 @@ export async function showProductDetail(
         [
           {
             text: "◀️ KEMBALI",
-            callback_data:
-              "admin:product:list",
+            callback_data: "admin:product:list",
           },
         ],
       ]
@@ -131,57 +114,36 @@ export async function showProductDetail(
   let text =
 `📦 ${product.name}
 
-💰 Rp${Number(product.price).toLocaleString("id-ID")}
+💰 Rp${Number(product.price || 0).toLocaleString("id-ID")}
 
 🏷️ ${product.type}
-🟢 Status: ${
-    product.is_active
-      ? "Aktif"
-      : "Nonaktif"
-  }`;
+🟢 Status: ${product.is_active ? "Aktif" : "Nonaktif"}`;
 
   if (product.description) {
-    text +=
-      `\n\n📝 ${product.description}`;
+    text += `\n\n📝 ${product.description}`;
   }
 
   if (product.type === "VIP") {
-    text +=
-      `\n⏳ ${product.duration_days} hari`;
+    text += `\n⏳ ${product.duration_days || 0} hari`;
 
-    const channels =
-      await getProductChannels(
-        env,
-        product.id
-      );
+    const channels = await getProductChannels(
+      env,
+      product.id
+    );
 
     if (channels.length) {
-      text +=
-        "\n\n📢 Channel:";
+      text += "\n\n📢 Channel:";
 
-      for (
-        const channel
-        of channels
-      ) {
-        text +=
-          `\n• ${channel.name || channel.channel_id}`;
+      for (const channel of channels) {
+        text += `\n• ${channel.name || channel.channel_id}`;
       }
     } else {
-      text +=
-        "\n\n📢 Channel: Belum dipilih";
+      text += "\n\n📢 Channel: Belum dipilih";
     }
   }
 
-  if (
-    product.type ===
-    "DIGITAL"
-  ) {
-    text +=
-      `\n📎 File: ${
-        product.file_id
-          ? "Tersedia"
-          : "Belum ada"
-      }`;
+  if (product.type === "DIGITAL") {
+    text += `\n📎 File: ${product.file_id ? "Tersedia" : "Belum ada"}`;
   }
 
   return editMessage(
@@ -193,37 +155,33 @@ export async function showProductDetail(
       [
         {
           text: "✏️ EDIT",
-          callback_data:
-            `admin:product:edit:${product.id}`,
+          callback_data: `admin:product:edit:${product.id}`,
         },
       ],
       [
         {
-          text:
-            product.is_active
-              ? "🔴 NONAKTIFKAN"
-              : "🟢 AKTIFKAN",
-          callback_data:
-            `admin:product:toggle:${product.id}`,
+          text: product.is_active
+            ? "🔴 NONAKTIFKAN"
+            : "🟢 AKTIFKAN",
+          callback_data: `admin:product:toggle:${product.id}`,
         },
       ],
       [
         {
           text: "🗑️ HAPUS",
-          callback_data:
-            `admin:product:delete:${product.id}`,
+          callback_data: `admin:product:delete:${product.id}`,
         },
       ],
       [
         {
           text: "◀️ KEMBALI",
-          callback_data:
-            "admin:product:list",
+          callback_data: "admin:product:list",
         },
       ],
     ]
   );
 }
+
 
 export async function showProductEdit(
   env,
@@ -231,11 +189,7 @@ export async function showProductEdit(
   messageId,
   productId
 ) {
-  const product =
-    await getProduct(
-      env,
-      productId
-    );
+  const product = await getProduct(env, productId);
 
   if (!product) {
     return;
@@ -245,42 +199,35 @@ export async function showProductEdit(
     [
       {
         text: "📝 NAMA",
-        callback_data:
-          `admin:product:field:name:${product.id}`,
+        callback_data: `admin:product:field:name:${product.id}`,
       },
     ],
     [
       {
         text: "📄 DESKRIPSI",
-        callback_data:
-          `admin:product:field:description:${product.id}`,
+        callback_data: `admin:product:field:description:${product.id}`,
       },
     ],
     [
       {
         text: "💰 HARGA",
-        callback_data:
-          `admin:product:field:price:${product.id}`,
+        callback_data: `admin:product:field:price:${product.id}`,
       },
     ],
   ];
 
-  if (
-    product.type === "VIP"
-  ) {
+  if (product.type === "VIP") {
     buttons.push([
       {
         text: "⏳ DURASI",
-        callback_data:
-          `admin:product:field:duration_days:${product.id}`,
+        callback_data: `admin:product:field:duration_days:${product.id}`,
       },
     ]);
 
     buttons.push([
       {
         text: "📢 CHANNEL",
-        callback_data:
-          `admin:product:channels:${product.id}`,
+        callback_data: `admin:product:channels:${product.id}`,
       },
     ]);
   }
@@ -288,8 +235,7 @@ export async function showProductEdit(
   buttons.push([
     {
       text: "◀️ KEMBALI",
-      callback_data:
-        `admin:product:view:${product.id}`,
+      callback_data: `admin:product:view:${product.id}`,
     },
   ]);
 
@@ -297,7 +243,7 @@ export async function showProductEdit(
     env,
     chatId,
     messageId,
-    `✏️ EDIT PRODUK
+`✏️ EDIT PRODUK
 
 📦 ${product.name}
 
@@ -306,6 +252,7 @@ Pilih data yang ingin diubah:`,
   );
 }
 
+
 export async function startProductFieldEdit(
   env,
   chatId,
@@ -313,11 +260,7 @@ export async function startProductFieldEdit(
   productId,
   field
 ) {
-  const product =
-    await getProduct(
-      env,
-      productId
-    );
+  const product = await getProduct(env, productId);
 
   if (!product) {
     return;
@@ -330,8 +273,7 @@ export async function startProductFieldEdit(
     duration_days: "DURASI",
   };
 
-  const label =
-    labels[field];
+  const label = labels[field];
 
   if (!label) {
     return;
@@ -342,7 +284,7 @@ export async function startProductFieldEdit(
     chatId,
     {
       type: "EDIT_PRODUCT",
-      product_id: productId,
+      product_id: Number(productId),
       field,
       message_id: messageId,
     }
@@ -352,7 +294,7 @@ export async function startProductFieldEdit(
     env,
     chatId,
     messageId,
-    `✏️ EDIT ${label}
+`✏️ EDIT ${label}
 
 Produk:
 ${product.name}
@@ -362,21 +304,20 @@ Kirim nilai baru:`,
       [
         {
           text: "❌ BATAL",
-          callback_data:
-            `admin:product:edit:${product.id}`,
+          callback_data: `admin:product:edit:${product.id}`,
         },
       ],
     ]
   );
 }
 
+
 export async function handleProductInput(
   env,
   message,
   state
 ) {
-  const value =
-    message.text?.trim();
+  const value = message.text?.trim();
 
   if (!value) {
     return true;
@@ -389,76 +330,52 @@ export async function handleProductInput(
     "duration_days",
   ];
 
-  if (
-    !fields.includes(
-      state.field
-    )
-  ) {
+  if (!fields.includes(state.field)) {
     return true;
   }
 
-  let finalValue =
-    value;
+  let finalValue = value;
 
   if (
     state.field === "price" ||
-    state.field ===
-      "duration_days"
+    state.field === "duration_days"
   ) {
     if (!/^\d+$/.test(value)) {
-      return editMessage(
+      await editMessage(
         env,
         message.chat.id,
         state.message_id,
-        state.field === "price"
-          ? `❌ Harga tidak valid.
+`❌ Nilai tidak valid.
 
-Kirim harga dalam angka.
-
-Contoh:
-50000`
-          : `❌ Durasi tidak valid.
-
-Kirim jumlah hari.
-
-Contoh:
-30`,
+Kirim angka saja.`,
         [
           [
             {
               text: "❌ BATAL",
-              callback_data:
-                `admin:product:edit:${state.product_id}`,
+              callback_data: `admin:product:edit:${state.product_id}`,
             },
           ],
         ]
       );
-    }
 
-    const number =
-      Number(value);
-
-    if (
-      !Number.isSafeInteger(
-        number
-      ) ||
-      number <= 0
-    ) {
       return true;
     }
 
-    finalValue =
-      number;
+    const number = Number(value);
+
+    if (!Number.isSafeInteger(number) || number <= 0) {
+      return true;
+    }
+
+    finalValue = number;
   }
 
   await updateProduct(
     env,
     state.product_id,
     {
-      [state.field]:
-        finalValue,
-      updated_at:
-        new Date().toISOString(),
+      [state.field]: finalValue,
+      updated_at: new Date().toISOString(),
     }
   );
 
@@ -480,6 +397,7 @@ Contoh:
   );
 }
 
+
 export async function startAddProduct(
   env,
   chatId,
@@ -499,34 +417,32 @@ export async function startAddProduct(
     env,
     chatId,
     messageId,
-    `➕ TAMBAH PRODUK
+`➕ TAMBAH PRODUK
 
 Pilih jenis produk:`,
     [
       [
         {
           text: "🟢 VIP",
-          callback_data:
-            "admin:product:add:type:VIP",
+          callback_data: "admin:product:add:type:VIP",
         },
       ],
       [
         {
           text: "📦 DIGITAL",
-          callback_data:
-            "admin:product:add:type:DIGITAL",
+          callback_data: "admin:product:add:type:DIGITAL",
         },
       ],
       [
         {
           text: "❌ BATAL",
-          callback_data:
-            "admin:products",
+          callback_data: "admin:products",
         },
       ],
     ]
   );
 }
+
 
 export async function selectAddProductType(
   env,
@@ -556,47 +472,45 @@ export async function selectAddProductType(
     env,
     chatId,
     messageId,
-    `➕ TAMBAH ${type}
+`➕ TAMBAH ${type}
 
-Langkah 1/4
+Langkah 1
 
 Kirim nama produk:`,
     [
       [
         {
           text: "❌ BATAL",
-          callback_data:
-            "admin:products",
+          callback_data: "admin:products",
         },
       ],
     ]
   );
 }
 
+
 export async function handleAddProductInput(
   env,
   message,
   state
 ) {
-  const value =
-    message.text?.trim();
+  const value = message.text?.trim();
 
   if (!value) {
     return true;
   }
 
-  if (
-    state.step === "NAME"
-  ) {
+  if (state.step === "NAME") {
+    const nextState = {
+      ...state,
+      step: "DESCRIPTION",
+      name: value,
+    };
+
     await updateState(
       env,
       message.from.id,
-      {
-        ...state,
-        step:
-          "DESCRIPTION",
-        name: value,
-      }
+      nextState
     );
 
     await deleteInput(
@@ -608,9 +522,9 @@ export async function handleAddProductInput(
       env,
       message.chat.id,
       state.message_id,
-      `➕ TAMBAH ${state.product_type}
+`➕ TAMBAH ${state.product_type}
 
-Langkah 2/4
+Langkah 2
 
 Nama:
 ${value}
@@ -620,34 +534,30 @@ Kirim deskripsi produk:`,
         [
           {
             text: "⏭️ LEWATI",
-            callback_data:
-              "admin:product:add:skip:description",
+            callback_data: "admin:product:add:skip:description",
           },
         ],
         [
           {
             text: "❌ BATAL",
-            callback_data:
-              "admin:products",
+            callback_data: "admin:products",
           },
         ],
       ]
     );
   }
 
-  if (
-    state.step ===
-    "DESCRIPTION"
-  ) {
+  if (state.step === "DESCRIPTION") {
+    const nextState = {
+      ...state,
+      step: "PRICE",
+      description: value,
+    };
+
     await updateState(
       env,
       message.from.id,
-      {
-        ...state,
-        step: "PRICE",
-        description:
-          value,
-      }
+      nextState
     );
 
     await deleteInput(
@@ -659,11 +569,11 @@ Kirim deskripsi produk:`,
       env,
       message.chat.id,
       state.message_id,
-      `➕ TAMBAH ${state.product_type}
+`➕ TAMBAH ${state.product_type}
 
-Langkah 3/4
+Langkah 3
 
-Kirim harga produk:
+Kirim harga produk.
 
 Contoh:
 50000`,
@@ -671,23 +581,20 @@ Contoh:
         [
           {
             text: "❌ BATAL",
-            callback_data:
-              "admin:products",
+            callback_data: "admin:products",
           },
         ],
       ]
     );
   }
 
-  if (
-    state.step === "PRICE"
-  ) {
+  if (state.step === "PRICE") {
     if (!/^\d+$/.test(value)) {
       return editMessage(
         env,
         message.chat.id,
         state.message_id,
-        `❌ Harga tidak valid.
+`❌ Harga tidak valid.
 
 Kirim harga dalam angka.
 
@@ -697,38 +604,31 @@ Contoh:
           [
             {
               text: "❌ BATAL",
-              callback_data:
-                "admin:products",
+              callback_data: "admin:products",
             },
-          ],
+          },
         ]
       );
     }
 
-    const price =
-      Number(value);
+    const price = Number(value);
 
-    if (
-      !Number.isSafeInteger(
-        price
-      ) ||
-      price <= 0
-    ) {
+    if (!Number.isSafeInteger(price) || price <= 0) {
       return true;
     }
+
+    const nextState = {
+      ...state,
+      step: state.product_type === "VIP"
+        ? "DURATION"
+        : "CONFIRM",
+      price,
+    };
 
     await updateState(
       env,
       message.from.id,
-      {
-        ...state,
-        step:
-          state.product_type ===
-          "VIP"
-            ? "DURATION"
-            : "CONFIRM",
-        price,
-      }
+      nextState
     );
 
     await deleteInput(
@@ -736,17 +636,14 @@ Contoh:
       message
     );
 
-    if (
-      state.product_type ===
-      "VIP"
-    ) {
+    if (state.product_type === "VIP") {
       return editMessage(
         env,
         message.chat.id,
         state.message_id,
-        `➕ TAMBAH VIP
+`➕ TAMBAH VIP
 
-Langkah 4/5
+Langkah 4
 
 Kirim masa aktif dalam hari.
 
@@ -756,8 +653,7 @@ Contoh:
           [
             {
               text: "❌ BATAL",
-              callback_data:
-                "admin:products",
+              callback_data: "admin:products",
             },
           ],
         ]
@@ -768,23 +664,17 @@ Contoh:
       env,
       message.chat.id,
       state.message_id,
-      {
-        ...state,
-        price,
-      }
+      nextState
     );
   }
 
-  if (
-    state.step ===
-    "DURATION"
-  ) {
+  if (state.step === "DURATION") {
     if (!/^\d+$/.test(value)) {
       return editMessage(
         env,
         message.chat.id,
         state.message_id,
-        `❌ Durasi tidak valid.
+`❌ Durasi tidak valid.
 
 Kirim jumlah hari.
 
@@ -794,34 +684,24 @@ Contoh:
           [
             {
               text: "❌ BATAL",
-              callback_data:
-                "admin:products",
+              callback_data: "admin:products",
             },
           ],
         ]
       );
     }
 
-    const duration =
-      Number(value);
+    const duration = Number(value);
 
-    if (
-      !Number.isSafeInteger(
-        duration
-      ) ||
-      duration <= 0
-    ) {
+    if (!Number.isSafeInteger(duration) || duration <= 0) {
       return true;
     }
 
     const nextState = {
       ...state,
       step: "CHANNELS",
-      duration_days:
-        duration,
-      selected_channels:
-        state.selected_channels ||
-        [],
+      duration_days: duration,
+      selected_channels: state.selected_channels || [],
     };
 
     await updateState(
@@ -846,16 +726,13 @@ Contoh:
   return true;
 }
 
+
 export async function skipDescription(
   env,
   chatId,
   messageId
 ) {
-  const state =
-    await getState(
-      env,
-      chatId
-    );
+  const state = await getState(env, chatId);
 
   if (!state) {
     return;
@@ -877,11 +754,11 @@ export async function skipDescription(
     env,
     chatId,
     messageId,
-    `➕ TAMBAH ${state.product_type}
+`➕ TAMBAH ${state.product_type}
 
-Langkah 3/4
+Langkah 3
 
-Kirim harga produk:
+Kirim harga produk.
 
 Contoh:
 50000`,
@@ -889,13 +766,13 @@ Contoh:
       [
         {
           text: "❌ BATAL",
-          callback_data:
-            "admin:products",
+          callback_data: "admin:products",
         },
       ],
     ]
   );
 }
+
 
 async function showChannelSelector(
   env,
@@ -903,30 +780,27 @@ async function showChannelSelector(
   messageId,
   state
 ) {
-  const channels =
-    await getChannels(env);
+  const channels = await getChannels(env);
 
   if (!channels.length) {
     return editMessage(
       env,
       chatId,
       messageId,
-      `❌ BELUM ADA CHANNEL
+`❌ BELUM ADA CHANNEL
 
 Tambahkan channel VIP terlebih dahulu.`,
       [
         [
           {
             text: "📢 CHANNEL VIP",
-            callback_data:
-              "admin:channel",
+            callback_data: "admin:channel",
           },
         ],
         [
           {
             text: "❌ BATAL",
-            callback_data:
-              "admin:products",
+            callback_data: "admin:products",
           },
         ],
       ]
@@ -936,9 +810,7 @@ Tambahkan channel VIP terlebih dahulu.`,
   const nextState = {
     ...state,
     step: "CHANNELS",
-    selected_channels:
-      state.selected_channels ||
-      [],
+    selected_channels: state.selected_channels || [],
   };
 
   await updateState(
@@ -955,6 +827,7 @@ Tambahkan channel VIP terlebih dahulu.`,
     channels
   );
 }
+
 
 async function renderChannelSelector(
   env,
@@ -963,42 +836,30 @@ async function renderChannelSelector(
   state,
   channels
 ) {
-  const selected =
-    state.selected_channels ||
-    [];
+  const selected = state.selected_channels || [];
 
-  const buttons =
-    channels.map(
-      (channel) => {
-        const active =
-          selected.includes(
-            Number(channel.id)
-          );
+  const buttons = channels.map((channel) => {
+    const active = selected.includes(Number(channel.id));
 
-        return [
-          {
-            text:
-              `${active ? "☑️" : "☐"} ${channel.name || channel.channel_id}`,
-            callback_data:
-              `admin:product:channel:toggle:${channel.id}`,
-          },
-        ];
-      }
-    );
+    return [
+      {
+        text: `${active ? "☑️" : "☐"} ${channel.name || channel.channel_id}`,
+        callback_data: `admin:product:channel:toggle:${channel.id}`,
+      },
+    ];
+  });
 
   buttons.push([
     {
       text: "✅ LANJUT",
-      callback_data:
-        "admin:product:channels:save",
+      callback_data: "admin:product:channels:save",
     },
   ]);
 
   buttons.push([
     {
       text: "❌ BATAL",
-      callback_data:
-        "admin:products",
+      callback_data: "admin:products",
     },
   ]);
 
@@ -1006,7 +867,7 @@ async function renderChannelSelector(
     env,
     chatId,
     messageId,
-    `📢 PILIH CHANNEL
+`📢 PILIH CHANNEL
 
 Pilih satu atau beberapa channel untuk produk ini.
 
@@ -1015,47 +876,37 @@ Terpilih: ${selected.length}`,
   );
 }
 
+
 export async function toggleProductChannel(
   env,
   chatId,
   messageId,
   channelId
 ) {
-  const state =
-    await getState(
-      env,
-      chatId
-    );
+  const state = await getState(env, chatId);
 
   if (!state) {
     return;
   }
 
   const selected = [
-    ...(state.selected_channels ||
-      []),
+    ...(state.selected_channels || []),
   ];
 
-  const id =
-    Number(channelId);
+  const id = Number(channelId);
 
-  const index =
-    selected.indexOf(id);
+  const index = selected.indexOf(id);
 
   if (index === -1) {
     selected.push(id);
   } else {
-    selected.splice(
-      index,
-      1
-    );
+    selected.splice(index, 1);
   }
 
   const nextState = {
     ...state,
     step: "CHANNELS",
-    selected_channels:
-      selected,
+    selected_channels: selected,
   };
 
   await updateState(
@@ -1064,8 +915,7 @@ export async function toggleProductChannel(
     nextState
   );
 
-  const channels =
-    await getChannels(env);
+  const channels = await getChannels(env);
 
   return renderChannelSelector(
     env,
@@ -1076,28 +926,20 @@ export async function toggleProductChannel(
   );
 }
 
+
 export async function saveProductChannels(
   env,
   chatId,
   messageId
 ) {
-  const state =
-    await getState(
-      env,
-      chatId
-    );
+  const state = await getState(env, chatId);
 
   if (!state) {
     return;
   }
 
-  if (
-    !state.selected_channels ||
-    state.selected_channels.length ===
-      0
-  ) {
-    const channels =
-      await getChannels(env);
+  if (!state.selected_channels?.length) {
+    const channels = await getChannels(env);
 
     return renderChannelSelector(
       env,
@@ -1127,6 +969,7 @@ export async function saveProductChannels(
   );
 }
 
+
 async function showAddConfirmation(
   env,
   chatId,
@@ -1140,39 +983,27 @@ async function showAddConfirmation(
 
 🏷️ ${state.product_type}
 
-💰 Rp${Number(state.price).toLocaleString("id-ID")}`;
+💰 Rp${Number(state.price || 0).toLocaleString("id-ID")}`;
 
-  if (
-    state.product_type ===
-    "VIP"
-  ) {
-    text +=
-      `\n⏳ ${state.duration_days} hari`;
+  if (state.product_type === "VIP") {
+    text += `\n⏳ ${state.duration_days} hari`;
 
-    const channels =
-      await getChannelsByIds(
-        env,
-        state.selected_channels ||
-          []
-      );
+    const channels = await getChannelsByIds(
+      env,
+      state.selected_channels || []
+    );
 
     if (channels.length) {
-      text +=
-        "\n\n📢 Channel:";
+      text += "\n\n📢 Channel:";
 
-      for (
-        const channel
-        of channels
-      ) {
-        text +=
-          `\n• ${channel.name || channel.channel_id}`;
+      for (const channel of channels) {
+        text += `\n• ${channel.name || channel.channel_id}`;
       }
     }
   }
 
   if (state.description) {
-    text +=
-      `\n\n📝 ${state.description}`;
+    text += `\n\n📝 ${state.description}`;
   }
 
   return editMessage(
@@ -1184,31 +1015,26 @@ async function showAddConfirmation(
       [
         {
           text: "✅ SIMPAN",
-          callback_data:
-            "admin:product:add:save",
+          callback_data: "admin:product:add:save",
         },
       ],
       [
         {
           text: "❌ BATAL",
-          callback_data:
-            "admin:products",
+          callback_data: "admin:products",
         },
       ],
     ]
   );
 }
 
+
 export async function saveNewProduct(
   env,
   chatId,
   messageId
 ) {
-  const state =
-    await getState(
-      env,
-      chatId
-    );
+  const state = await getState(env, chatId);
 
   if (!state) {
     return;
@@ -1223,46 +1049,36 @@ export async function saveNewProduct(
   }
 
   if (
-    state.product_type ===
-      "VIP" &&
+    state.product_type === "VIP" &&
     (
       !state.duration_days ||
-      !state.selected_channels ||
-      !state.selected_channels
-        .length
+      !state.selected_channels?.length
     )
   ) {
     return;
   }
 
-  const rows =
-    await supabase(
-      env,
-      "products",
-      "POST",
-      {
-        name: state.name,
-        description:
-          state.description ||
-          null,
-        price: state.price,
-        type:
-          state.product_type,
-        duration_days:
-          state.product_type ===
-          "VIP"
-            ? state.duration_days
-            : null,
-        is_active: true,
-      },
-      {
-        Prefer:
-          "return=representation",
-      }
-    );
+  const rows = await supabase(
+    env,
+    "products",
+    "POST",
+    {
+      name: state.name,
+      description: state.description || null,
+      price: Number(state.price),
+      type: state.product_type,
+      duration_days:
+        state.product_type === "VIP"
+          ? Number(state.duration_days)
+          : null,
+      is_active: true,
+    },
+    {
+      Prefer: "return=representation",
+    }
+  );
 
-  const product =
-    rows?.[0];
+  const product = rows?.[0];
 
   if (!product) {
     return editMessage(
@@ -1274,31 +1090,22 @@ export async function saveNewProduct(
         [
           {
             text: "◀️ PRODUK",
-            callback_data:
-              "admin:products",
+            callback_data: "admin:products",
           },
         ],
       ]
     );
   }
 
-  if (
-    state.product_type ===
-    "VIP"
-  ) {
-    for (
-      const channelId
-      of state.selected_channels
-    ) {
+  if (state.product_type === "VIP") {
+    for (const channelId of state.selected_channels) {
       await supabase(
         env,
         "product_channels",
         "POST",
         {
-          product_id:
-            product.id,
-          channel_id:
-            channelId,
+          product_id: Number(product.id),
+          channel_id: Number(channelId),
         }
       );
     }
@@ -1313,29 +1120,28 @@ export async function saveNewProduct(
     env,
     chatId,
     messageId,
-    `✅ PRODUK TERSIMPAN
+`✅ PRODUK TERSIMPAN
 
-${state.name}
+📦 ${state.name}
 
 Produk berhasil ditambahkan.`,
     [
       [
         {
           text: "📦 PRODUK",
-          callback_data:
-            "admin:products",
+          callback_data: "admin:products",
         },
       ],
       [
         {
           text: "◀️ ADMIN",
-          callback_data:
-            "admin:menu",
+          callback_data: "admin:menu",
         },
       ],
     ]
   );
 }
+
 
 export async function showProductChannels(
   env,
@@ -1343,71 +1149,50 @@ export async function showProductChannels(
   messageId,
   productId
 ) {
-  const product =
-    await getProduct(
-      env,
-      productId
-    );
+  const product = await getProduct(
+    env,
+    productId
+  );
 
-  if (!product) {
-    return editMessage(
-      env,
-      chatId,
-      messageId,
-      "❌ Produk tidak ditemukan.",
-      [
-        [
-          {
-            text: "◀️ KEMBALI",
-            callback_data:
-              "admin:product:list",
-          },
-        ],
-      ]
-    );
+  if (!product || product.type !== "VIP") {
+    return;
   }
 
-  const channels =
-    await getChannels(env);
+  const channels = await getChannels(env);
 
   if (!channels.length) {
     return editMessage(
       env,
       chatId,
       messageId,
-      `❌ BELUM ADA CHANNEL
+`❌ BELUM ADA CHANNEL
 
 Tambahkan channel VIP terlebih dahulu.`,
       [
         [
           {
             text: "📢 CHANNEL VIP",
-            callback_data:
-              "admin:channel",
+            callback_data: "admin:channel",
           },
         ],
         [
           {
             text: "◀️ KEMBALI",
-            callback_data:
-              `admin:product:edit:${product.id}`,
+            callback_data: `admin:product:edit:${product.id}`,
           },
         ],
       ]
     );
   }
 
-  const selectedRows =
-    await getProductChannels(
-      env,
-      productId
-    );
+  const selectedRows = await getProductChannels(
+    env,
+    productId
+  );
 
-  const selected =
-    selectedRows.map(
-      (channel) =>
-        Number(channel.id)
-    );
+  const selected = selectedRows.map(
+    (channel) => Number(channel.id)
+  );
 
   return renderEditChannelSelector(
     env,
@@ -1419,6 +1204,7 @@ Tambahkan channel VIP terlebih dahulu.`,
   );
 }
 
+
 async function renderEditChannelSelector(
   env,
   chatId,
@@ -1427,24 +1213,19 @@ async function renderEditChannelSelector(
   channels,
   selected
 ) {
-  const buttons =
-    channels.map(
-      (channel) => {
-        const active =
-          selected.includes(
-            Number(channel.id)
-          );
-
-        return [
-          {
-            text:
-              `${active ? "☑️" : "☐"} ${channel.name || channel.channel_id}`,
-            callback_data:
-              `admin:product:editchannel:toggle:${product.id}:${channel.id}`,
-          },
-        ];
-      }
+  const buttons = channels.map((channel) => {
+    const active = selected.includes(
+      Number(channel.id)
     );
+
+    return [
+      {
+        text: `${active ? "☑️" : "☐"} ${channel.name || channel.channel_id}`,
+        callback_data:
+          `admin:product:editchannel:toggle:${product.id}:${channel.id}`,
+      },
+    ];
+  });
 
   buttons.push([
     {
@@ -1466,14 +1247,10 @@ async function renderEditChannelSelector(
     env,
     chatId,
     {
-      type:
-        "EDIT_PRODUCT_CHANNELS",
-      product_id:
-        product.id,
-      selected_channels:
-        selected,
-      message_id:
-        messageId,
+      type: "EDIT_PRODUCT_CHANNELS",
+      product_id: Number(product.id),
+      selected_channels: selected.map(Number),
+      message_id: messageId,
     }
   );
 
@@ -1481,16 +1258,15 @@ async function renderEditChannelSelector(
     env,
     chatId,
     messageId,
-    `📢 CHANNEL PRODUK
+`📢 CHANNEL PRODUK
 
 ${product.name}
 
-Pilih satu atau beberapa channel.
-
-Terpilih: ${selected.length}`,
+Pilih satu atau beberapa channel.`,
     buttons
   );
 }
+
 
 export async function toggleEditProductChannel(
   env,
@@ -1499,53 +1275,40 @@ export async function toggleEditProductChannel(
   productId,
   channelId
 ) {
-  const state =
-    await getState(
-      env,
-      chatId
-    );
+  const state = await getState(env, chatId);
 
   if (!state) {
     return;
   }
 
   const selected = [
-    ...(state.selected_channels ||
-      []),
+    ...(state.selected_channels || []),
   ];
 
-  const id =
-    Number(channelId);
+  const id = Number(channelId);
 
-  const index =
-    selected.indexOf(id);
+  const index = selected.indexOf(id);
 
   if (index === -1) {
     selected.push(id);
   } else {
-    selected.splice(
-      index,
-      1
-    );
+    selected.splice(index, 1);
   }
 
-  const product =
-    await getProduct(
-      env,
-      productId
-    );
+  const product = await getProduct(
+    env,
+    productId
+  );
 
   if (!product) {
     return;
   }
 
-  const channels =
-    await getChannels(env);
+  const channels = await getChannels(env);
 
   const nextState = {
     ...state,
-    selected_channels:
-      selected,
+    selected_channels: selected,
   };
 
   await updateState(
@@ -1564,25 +1327,20 @@ export async function toggleEditProductChannel(
   );
 }
 
+
 export async function saveEditProductChannels(
   env,
   chatId,
   messageId,
   productId
 ) {
-  const state =
-    await getState(
-      env,
-      chatId
-    );
+  const state = await getState(env, chatId);
 
   if (!state) {
     return;
   }
 
-  if (
-    !state.selected_channels?.length
-  ) {
+  if (!state.selected_channels?.length) {
     return editMessage(
       env,
       chatId,
@@ -1613,19 +1371,14 @@ export async function saveEditProductChannels(
     "DELETE"
   );
 
-  for (
-    const channelId
-    of state.selected_channels
-  ) {
+  for (const channelId of state.selected_channels) {
     await supabase(
       env,
       "product_channels",
       "POST",
       {
-        product_id:
-          Number(productId),
-        channel_id:
-          Number(channelId),
+        product_id: Number(productId),
+        channel_id: Number(channelId),
       }
     );
   }
@@ -1643,17 +1396,17 @@ export async function saveEditProductChannels(
   );
 }
 
+
 export async function toggleProduct(
   env,
   chatId,
   messageId,
   productId
 ) {
-  const product =
-    await getProduct(
-      env,
-      productId
-    );
+  const product = await getProduct(
+    env,
+    productId
+  );
 
   if (!product) {
     return;
@@ -1663,10 +1416,8 @@ export async function toggleProduct(
     env,
     productId,
     {
-      is_active:
-        !product.is_active,
-      updated_at:
-        new Date().toISOString(),
+      is_active: !product.is_active,
+      updated_at: new Date().toISOString(),
     }
   );
 
@@ -1678,17 +1429,17 @@ export async function toggleProduct(
   );
 }
 
+
 export async function confirmDeleteProduct(
   env,
   chatId,
   messageId,
   productId
 ) {
-  const product =
-    await getProduct(
-      env,
-      productId
-    );
+  const product = await getProduct(
+    env,
+    productId
+  );
 
   if (!product) {
     return;
@@ -1698,7 +1449,7 @@ export async function confirmDeleteProduct(
     env,
     chatId,
     messageId,
-    `🗑️ HAPUS PRODUK
+`🗑️ HAPUS PRODUK
 
 ${product.name}
 
@@ -1721,6 +1472,7 @@ Produk akan dihapus permanen.`,
     ]
   );
 }
+
 
 export async function deleteProduct(
   env,
@@ -1747,18 +1499,19 @@ export async function deleteProduct(
   );
 }
 
+
 async function getProduct(
   env,
   productId
 ) {
-  const rows =
-    await supabase(
-      env,
-      `products?id=eq.${productId}&limit=1`
-    );
+  const rows = await supabase(
+    env,
+    `products?id=eq.${productId}&limit=1`
+  );
 
   return rows?.[0] || null;
 }
+
 
 async function getAllProducts(
   env
@@ -1770,6 +1523,7 @@ async function getAllProducts(
     )
   ) || [];
 }
+
 
 async function updateProduct(
   env,
@@ -1784,6 +1538,7 @@ async function updateProduct(
   );
 }
 
+
 async function getChannels(
   env
 ) {
@@ -1795,6 +1550,7 @@ async function getChannels(
   ) || [];
 }
 
+
 async function getChannelsByIds(
   env,
   ids
@@ -1803,35 +1559,41 @@ async function getChannelsByIds(
     return [];
   }
 
+  const cleanIds = ids
+    .map(Number)
+    .filter(Number.isSafeInteger);
+
+  if (!cleanIds.length) {
+    return [];
+  }
+
   return (
     await supabase(
       env,
-      `vip_channels?id=in.(${ids.join(",")})&order=id.asc`
+      `vip_channels?id=in.(${cleanIds.join(",")})&order=id.asc`
     )
   ) || [];
 }
+
 
 async function getProductChannels(
   env,
   productId
 ) {
-  const rows =
-    (
-      await supabase(
-        env,
-        `product_channels?product_id=eq.${productId}`
-      )
-    ) || [];
+  const rows = (
+    await supabase(
+      env,
+      `product_channels?product_id=eq.${productId}`
+    )
+  ) || [];
 
   if (!rows.length) {
     return [];
   }
 
-  const ids =
-    rows.map(
-      (row) =>
-        Number(row.channel_id)
-    );
+  const ids = rows
+    .map((row) => Number(row.channel_id))
+    .filter(Number.isSafeInteger);
 
   return getChannelsByIds(
     env,
@@ -1839,30 +1601,27 @@ async function getProductChannels(
   );
 }
 
+
 async function getState(
   env,
   telegramId
 ) {
-  const rows =
-    (
-      await supabase(
-        env,
-        `settings?key=eq.admin_state_${telegramId}&limit=1`
-      )
-    ) || [];
+  const rows = await supabase(
+    env,
+    `settings?key=eq.admin_state_${telegramId}&limit=1`
+  );
 
-  if (!rows.length) {
+  if (!rows?.length) {
     return null;
   }
 
   try {
-    return JSON.parse(
-      rows[0].value
-    );
+    return JSON.parse(rows[0].value);
   } catch {
     return null;
   }
 }
+
 
 async function saveState(
   env,
@@ -1874,19 +1633,16 @@ async function saveState(
     "settings",
     "POST",
     {
-      key:
-        `admin_state_${telegramId}`,
-      value:
-        JSON.stringify(state),
-      updated_at:
-        new Date().toISOString(),
+      key: `admin_state_${telegramId}`,
+      value: JSON.stringify(state),
+      updated_at: new Date().toISOString(),
     },
     {
-      Prefer:
-        "resolution=merge-duplicates",
+      Prefer: "resolution=merge-duplicates",
     }
   );
 }
+
 
 async function updateState(
   env,
@@ -1900,6 +1656,7 @@ async function updateState(
   );
 }
 
+
 async function deleteState(
   env,
   telegramId
@@ -1911,19 +1668,21 @@ async function deleteState(
   );
 }
 
+
 async function deleteInput(
   env,
   message
 ) {
-  if (message.message_id) {
-    try {
-      await deleteMessage(
-        env,
-        message.chat.id,
-        message.message_id
-      );
-    } catch (error) {
-      console.error(error);
-    }
+  if (!message?.message_id) {
+    return;
+  }
+
+  try {
+    await deleteMessage(
+      env,
+      message.chat.id,
+      message.message_id
+    );
+  } catch {
   }
 }
