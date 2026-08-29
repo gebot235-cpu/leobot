@@ -28,6 +28,11 @@ import {
   handleAddProductInput,
   skipDescription,
   saveNewProduct,
+  showProductChannels,
+  toggleProductChannel,
+  saveProductChannels,
+  toggleEditProductChannel,
+  saveEditProductChannels,
 } from "./admin/products.js";
 
 import {
@@ -45,11 +50,9 @@ import {
   getState,
 } from "./admin/messages.js";
 
-
 export default {
   async fetch(request, env) {
-    const url =
-      new URL(request.url);
+    const url = new URL(request.url);
 
     if (
       request.method === "GET" &&
@@ -76,20 +79,16 @@ export default {
         return new Response("OK");
       } catch (error) {
         console.error(error);
-
         return new Response("OK");
       }
     }
 
     return new Response(
       "Not Found",
-      {
-        status: 404,
-      }
+      { status: 404 }
     );
   },
 };
-
 
 async function handleUpdate(
   update,
@@ -109,7 +108,6 @@ async function handleUpdate(
     );
   }
 }
-
 
 async function handleMessage(
   message,
@@ -221,7 +219,7 @@ async function handleMessage(
     await sendMessage(
       env,
       chatId,
-`👑 LEOBOT ADMIN
+      `👑 LEOBOT ADMIN
 
 Kelola toko:`,
       [
@@ -267,19 +265,12 @@ Kelola toko:`,
   }
 }
 
-
 async function handleCallback(
   callback,
   env
 ) {
   const data =
     callback.data || "";
-
-  if (
-    !callback.message
-  ) {
-    return;
-  }
 
   const chatId =
     callback.message.chat.id;
@@ -309,51 +300,45 @@ async function handleCallback(
     }
   }
 
-  if (
-    data === "admin:menu"
-  ) {
+  if (data === "admin:menu") {
     await showAdminMenu(
       env,
       chatId,
       messageId
     );
-
     return;
   }
 
-  if (
-    data === "admin:products"
-  ) {
+  if (data === "admin:products") {
     await showAdminProducts(
       env,
       chatId,
       messageId
     );
-
     return;
   }
 
   if (
-    data === "admin:product:add"
+    data ===
+    "admin:product:add"
   ) {
     await startAddProduct(
       env,
       chatId,
       messageId
     );
-
     return;
   }
 
   if (
-    data === "admin:product:list"
+    data ===
+    "admin:product:list"
   ) {
     await showProductList(
       env,
       chatId,
       messageId
     );
-
     return;
   }
 
@@ -374,7 +359,6 @@ async function handleCallback(
       messageId,
       type
     );
-
     return;
   }
 
@@ -387,7 +371,6 @@ async function handleCallback(
       chatId,
       messageId
     );
-
     return;
   }
 
@@ -400,7 +383,6 @@ async function handleCallback(
       chatId,
       messageId
     );
-
     return;
   }
 
@@ -421,7 +403,6 @@ async function handleCallback(
       messageId,
       productId
     );
-
     return;
   }
 
@@ -442,7 +423,6 @@ async function handleCallback(
       messageId,
       productId
     );
-
     return;
   }
 
@@ -467,7 +447,102 @@ async function handleCallback(
       productId,
       field
     );
+    return;
+  }
 
+  if (
+    data.startsWith(
+      "admin:product:channels:"
+    )
+  ) {
+    const productId =
+      data.replace(
+        "admin:product:channels:",
+        ""
+      );
+
+    await showProductChannels(
+      env,
+      chatId,
+      messageId,
+      productId
+    );
+    return;
+  }
+
+  if (
+    data.startsWith(
+      "admin:product:channel:toggle:"
+    )
+  ) {
+    const channelId =
+      data.replace(
+        "admin:product:channel:toggle:",
+        ""
+      );
+
+    await toggleProductChannel(
+      env,
+      chatId,
+      messageId,
+      channelId
+    );
+    return;
+  }
+
+  if (
+    data ===
+    "admin:product:channels:save"
+  ) {
+    await saveProductChannels(
+      env,
+      chatId,
+      messageId
+    );
+    return;
+  }
+
+  if (
+    data.startsWith(
+      "admin:product:editchannel:toggle:"
+    )
+  ) {
+    const parts =
+      data.split(":");
+
+    const productId =
+      parts[4];
+
+    const channelId =
+      parts[5];
+
+    await toggleEditProductChannel(
+      env,
+      chatId,
+      messageId,
+      productId,
+      channelId
+    );
+    return;
+  }
+
+  if (
+    data.startsWith(
+      "admin:product:editchannel:save:"
+    )
+  ) {
+    const productId =
+      data.replace(
+        "admin:product:editchannel:save:",
+        ""
+      );
+
+    await saveEditProductChannels(
+      env,
+      chatId,
+      messageId,
+      productId
+    );
     return;
   }
 
@@ -488,7 +563,6 @@ async function handleCallback(
       messageId,
       productId
     );
-
     return;
   }
 
@@ -509,7 +583,6 @@ async function handleCallback(
       messageId,
       productId
     );
-
     return;
   }
 
@@ -530,7 +603,6 @@ async function handleCallback(
       messageId,
       productId
     );
-
     return;
   }
 
@@ -542,27 +614,18 @@ async function handleCallback(
       chatId,
       messageId
     );
-
     return;
   }
 
   if (
-    data === "admin:channel:add"
+    data ===
+    "admin:channel:add"
   ) {
     await startAddChannel(
       env,
       chatId,
       messageId
     );
-
-    return;
-  }
-
-  if (
-    data.startsWith(
-      "admin:channel:view:"
-    )
-  ) {
     return;
   }
 
@@ -574,7 +637,6 @@ async function handleCallback(
       chatId,
       messageId
     );
-
     return;
   }
 
@@ -595,7 +657,6 @@ async function handleCallback(
       messageId,
       type
     );
-
     return;
   }
 
@@ -616,7 +677,6 @@ async function handleCallback(
       messageId,
       type
     );
-
     return;
   }
 
@@ -637,31 +697,6 @@ async function handleCallback(
       messageId,
       type
     );
-
-    return;
-  }
-
-  if (
-    data === "admin:payment"
-  ) {
-    await showAdminMenu(
-      env,
-      chatId,
-      messageId
-    );
-
-    return;
-  }
-
-  if (
-    data === "admin:settings"
-  ) {
-    await showAdminMenu(
-      env,
-      chatId,
-      messageId
-    );
-
     return;
   }
 
@@ -677,7 +712,6 @@ async function handleCallback(
       messageId,
       productId
     );
-
     return;
   }
 
@@ -689,7 +723,6 @@ async function handleCallback(
       chatId,
       messageId
     );
-
     return;
   }
 }
