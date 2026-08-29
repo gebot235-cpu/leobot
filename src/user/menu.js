@@ -11,7 +11,8 @@ import {
 
 export async function showMainMenu(
   env,
-  chatId
+  chatId,
+  messageId = null
 ) {
   const products =
     await getActiveProducts(env);
@@ -34,12 +35,34 @@ Silakan pilih produk:`;
     ]);
 
   if (buttons.length === 0) {
+    const emptyText =
+`${text}
+
+Saat ini belum ada produk yang tersedia.`;
+
+    if (messageId) {
+      return editMessage(
+        env,
+        chatId,
+        messageId,
+        emptyText
+      );
+    }
+
     return sendMessage(
       env,
       chatId,
-`${text}
+      emptyText
+    );
+  }
 
-Saat ini belum ada produk yang tersedia.`
+  if (messageId) {
+    return editMessage(
+      env,
+      chatId,
+      messageId,
+      text,
+      buttons
     );
   }
 
@@ -77,7 +100,8 @@ export async function showProduct(
         [
           {
             text: "◀️ KEMBALI",
-            callback_data: "user:menu",
+            callback_data:
+              "user:menu",
           },
         ],
       ]
