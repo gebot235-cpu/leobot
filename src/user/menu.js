@@ -1,5 +1,6 @@
 import {
   sendMessage,
+  editMessage,
 } from "../telegram.js";
 
 import {
@@ -12,7 +13,8 @@ export async function showMainMenu(
   env,
   chatId
 ) {
-  const products = await getActiveProducts(env);
+  const products =
+    await getActiveProducts(env);
 
   const text =
 `🦁 LEOBOT
@@ -21,13 +23,15 @@ Selamat datang di toko kami! 👋
 
 Silakan pilih produk:`;
 
-  const buttons = products.map((product) => [
-    {
-      text:
-        `${product.type === "VIP" ? "🟢" : "📦"} ${product.name}`,
-      callback_data: `product:${product.id}`,
-    },
-  ]);
+  const buttons =
+    products.map((product) => [
+      {
+        text:
+          `${product.type === "VIP" ? "🟢" : "📦"} ${product.name}`,
+        callback_data:
+          `product:${product.id}`,
+      },
+    ]);
 
   if (buttons.length === 0) {
     return sendMessage(
@@ -51,18 +55,32 @@ Saat ini belum ada produk yang tersedia.`
 export async function showProduct(
   env,
   chatId,
+  messageId,
   productId
 ) {
-  const product = await getProduct(
-    env,
-    productId
-  );
+  const product =
+    await getProduct(
+      env,
+      productId
+    );
 
-  if (!product || !product.is_active) {
-    return sendMessage(
+  if (
+    !product ||
+    !product.is_active
+  ) {
+    return editMessage(
       env,
       chatId,
-      "❌ Produk tidak tersedia."
+      messageId,
+      "❌ Produk tidak tersedia.",
+      [
+        [
+          {
+            text: "◀️ KEMBALI",
+            callback_data: "user:menu",
+          },
+        ],
+      ]
     );
   }
 
@@ -72,24 +90,41 @@ export async function showProduct(
 `;
 
   if (product.description) {
-    text += `${product.description}\n\n`;
+    text +=
+      `${product.description}\n\n`;
   }
 
-  text += `💰 Harga: Rp${Number(product.price).toLocaleString("id-ID")}`;
+  text +=
+    `💰 Harga: Rp${Number(product.price).toLocaleString("id-ID")}`;
 
   if (product.type === "VIP") {
-    text += `\n⏳ Masa aktif: ${product.duration_days} hari`;
+    text +=
+      `\n⏳ Masa aktif: ${product.duration_days} hari`;
   }
 
-  text += `\n\nSilakan lanjutkan pembayaran.`;
+  text +=
+    `\n\nSilakan lanjutkan pembayaran.`;
 
-  // Untuk sementara belum membuat QRIS.
-  // Tahap berikutnya fungsi ini akan membuat order
-  // lalu langsung mengirim QRIS.
-
-  return sendMessage(
+  return editMessage(
     env,
     chatId,
-    text
+    messageId,
+    text,
+    [
+      [
+        {
+          text: "💳 BAYAR",
+          callback_data:
+            `order:create:${product.id}`,
+        },
+      ],
+      [
+        {
+          text: "◀️ KEMBALI",
+          callback_data:
+            "user:menu",
+        },
+      ],
+    ]
   );
 }
