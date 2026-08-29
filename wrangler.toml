@@ -1,0 +1,6 @@
+name = "leobot"
+main = "src/index.js"
+compatibility_date = "2026-08-29"
+
+[vars]
+ENVIRONMENT = "production"
