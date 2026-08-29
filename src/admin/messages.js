@@ -1,6 +1,6 @@
 import {
   editMessage,
-  sendMessage,
+  deleteMessage,
 } from "../telegram.js";
 
 import {
@@ -215,20 +215,16 @@ export async function showMessageEditor(
       config.key
     );
 
-  const text =
-`✏️ ${config.name}
-
-Pesan saat ini:
-
-${current}
-
-Pilih tindakan:`;
-
   return editMessage(
     env,
     chatId,
     messageId,
-    text,
+`✏️ ${config.name}
+
+Pesan saat ini:
+
+${current}`,
+
     [
       [
         {
@@ -287,15 +283,17 @@ export async function startMessageEdit(
 
 Kirim pesan baru sekarang.
 
-Kamu bisa menggunakan:
+Placeholder yang tersedia:
 
 {first_name}
 {product_name}
+{description}
 {price}
 {duration}
 {order_code}
 {minutes}
 {expires_at}`,
+
     [
       [
         {
@@ -324,12 +322,6 @@ export async function handleMessageInput(
   }
 
   if (!message.text) {
-    await sendMessage(
-      env,
-      message.chat.id,
-      "❌ Pesan harus berupa teks."
-    );
-
     return true;
   }
 
@@ -341,15 +333,22 @@ export async function handleMessageInput(
 
   await deleteState(
     env,
-    message.chat.id
+    message.from.id
   );
 
-  await sendMessage(
+  if (message.message_id) {
+    await deleteMessage(
+      env,
+      message.chat.id,
+      message.message_id
+    );
+  }
+
+  await showMessageEditor(
     env,
     message.chat.id,
-`✅ PESAN DIPERBARUI
-
-${config.name} berhasil disimpan.`
+    state.message_id,
+    state.message_type
   );
 
   return true;
@@ -403,7 +402,9 @@ async function getMessage(
 
   const config =
     Object.values(messageTypes)
-      .find((item) => item.key === key);
+      .find(
+        (item) => item.key === key
+      );
 
   return config?.default || "";
 }
@@ -490,4 +491,4 @@ async function deleteState(
     `settings?key=eq.admin_state_${telegramId}`,
     "DELETE"
   );
-}
+        }
