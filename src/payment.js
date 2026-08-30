@@ -618,9 +618,7 @@ export async function createPayment(
                   ? 1
                   : 0,
             }),
-          }
-        }
-      );
+        });
   } catch {
     await updateOrder(
       env,
