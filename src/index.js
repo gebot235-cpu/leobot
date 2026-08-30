@@ -71,7 +71,9 @@ import {
   cancelPaymentSetting,
   savePaymentSetting,
   showPaymentConfig,
-} from "./admin/payment.js";
+  togglePayment,
+  handleBuatQrisWebhook,
+} from "./payment.js";
 
 import {
   showMainMenu,
@@ -84,6 +86,22 @@ import {
 
 export default {
   async fetch(request, env) {
+    const url = new URL(request.url);
+
+    if (
+      request.method === "POST" &&
+      (
+        url.pathname === "/webhook" ||
+        url.pathname === "/webhook/buatqris" ||
+        url.pathname === "/payment/webhook"
+      )
+    ) {
+      return handleBuatQrisWebhook(
+        env,
+        request
+      );
+    }
+
     if (request.method !== "POST") {
       return new Response("OK");
     }
@@ -93,9 +111,12 @@ export default {
     try {
       update = await request.json();
     } catch {
-      return new Response("Bad Request", {
-        status: 400,
-      });
+      return new Response(
+        "Bad Request",
+        {
+          status: 400,
+        }
+      );
     }
 
     try {
@@ -259,10 +280,8 @@ async function handleMessage(
   }
 
   if (
-    state.type ===
-    "ADD_CHANNEL" ||
-    state.type ===
-    "EDIT_CHANNEL"
+    state.type === "ADD_CHANNEL" ||
+    state.type === "EDIT_CHANNEL"
   ) {
     await handleChannelInput(
       env,
@@ -359,8 +378,7 @@ async function handleCallback(
   }
 
   if (
-    data ===
-    "user:menu"
+    data === "user:menu"
   ) {
     await showMainMenu(
       env,
@@ -372,9 +390,7 @@ async function handleCallback(
   }
 
   if (
-    data.startsWith(
-      "product:"
-    )
+    data.startsWith("product:")
   ) {
     const productId =
       data.split(":")[1];
@@ -390,9 +406,7 @@ async function handleCallback(
   }
 
   if (
-    !data.startsWith(
-      "admin:"
-    )
+    !data.startsWith("admin:")
   ) {
     return;
   }
@@ -410,8 +424,7 @@ async function handleCallback(
     data.split(":");
 
   if (
-    data ===
-    "admin:menu"
+    data === "admin:menu"
   ) {
     await deleteAdminState(
       env,
@@ -427,15 +440,8 @@ async function handleCallback(
     return;
   }
 
-  /*
-   * =========================
-   * PEMBAYARAN
-   * =========================
-   */
-
   if (
-    data ===
-    "admin:payment"
+    data === "admin:payment"
   ) {
     await showPaymentMenu(
       env,
@@ -451,6 +457,19 @@ async function handleCallback(
     "admin:payment:config"
   ) {
     await showPaymentConfig(
+      env,
+      chatId,
+      messageId
+    );
+
+    return;
+  }
+
+  if (
+    data ===
+    "admin:payment:toggle"
+  ) {
+    await togglePayment(
       env,
       chatId,
       messageId
@@ -500,15 +519,8 @@ async function handleCallback(
     return;
   }
 
-  /*
-   * =========================
-   * PRODUK
-   * =========================
-   */
-
   if (
-    data ===
-    "admin:products"
+    data === "admin:products"
   ) {
     await showAdminProducts(
       env,
@@ -587,12 +599,6 @@ async function handleCallback(
     return;
   }
 
-  /*
-   * =========================
-   * PRODUCT VIEW
-   * =========================
-   */
-
   if (
     parts[0] === "admin" &&
     parts[1] === "product" &&
@@ -628,12 +634,6 @@ async function handleCallback(
 
     return;
   }
-
-  /*
-   * =========================
-   * DIGITAL
-   * =========================
-   */
 
   if (
     parts[0] === "admin" &&
@@ -741,12 +741,6 @@ async function handleCallback(
     return;
   }
 
-  /*
-   * =========================
-   * PRODUCT EDIT
-   * =========================
-   */
-
   if (
     parts[0] === "admin" &&
     parts[1] === "product" &&
@@ -838,12 +832,6 @@ async function handleCallback(
 
     return;
   }
-
-  /*
-   * =========================
-   * PRODUCT CHANNELS
-   * =========================
-   */
 
   if (
     parts[0] === "admin" &&
@@ -938,36 +926,8 @@ async function handleCallback(
     return;
   }
 
-  /*
-   * =========================
-   * PRODUCT TOGGLE / DELETE
-   * =========================
-   */
-
   if (
-    parts[0] === "admin" &&
-    parts[1] === "product" &&
-    parts[2] === "toggle"
-  ) {
-    await toggleProduct(
-      env,
-      chatId,
-      messageId,
-      parts[3]
-    );
-
-    return;
-  }
-
-  /*
-   * =========================
-   * CHANNEL
-   * =========================
-   */
-
-  if (
-    data ===
-    "admin:channel"
+    data === "admin:channel"
   ) {
     await deleteAdminState(
       env,
@@ -1062,12 +1022,6 @@ async function handleCallback(
     return;
   }
 
-  /*
-   * =========================
-   * MESSAGES
-   * =========================
-   */
-
   if (
     data ===
     "admin:messages"
@@ -1156,12 +1110,6 @@ async function handleCallback(
 
     return;
   }
-
-  /*
-   * =========================
-   * SETTINGS
-   * =========================
-   */
 
   if (
     data ===
