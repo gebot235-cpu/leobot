@@ -1,11 +1,11 @@
 import {
   sendMessage,
   editMessage,
-} from "../telegram.js";
+} from "./telegram.js";
 
 import {
   supabase,
-} from "../supabase.js";
+} from "./supabase.js";
 
 const BUATQRIS_API =
   "https://api.buatqris.site";
