@@ -72,7 +72,8 @@ import {
   savePaymentSetting,
   showPaymentConfig,
   togglePayment,
-  handleBuatQrisWebhook,
+  createPayment,
+  sendPaymentQr,
 } from "./payment.js";
 
 import {
@@ -86,16 +87,13 @@ import {
 
 export default {
   async fetch(request, env) {
-    const url = new URL(request.url);
-
     if (
       request.method === "POST" &&
-      (
-        url.pathname === "/webhook" ||
-        url.pathname === "/webhook/buatqris" ||
-        url.pathname === "/payment/webhook"
-      )
+      new URL(request.url).pathname === "/webhook/buatqris"
     ) {
+      const { handleBuatQrisWebhook } =
+        await import("./payment.js");
+
       return handleBuatQrisWebhook(
         env,
         request
@@ -111,12 +109,9 @@ export default {
     try {
       update = await request.json();
     } catch {
-      return new Response(
-        "Bad Request",
-        {
-          status: 400,
-        }
-      );
+      return new Response("Bad Request", {
+        status: 400,
+      });
     }
 
     try {
@@ -280,8 +275,10 @@ async function handleMessage(
   }
 
   if (
-    state.type === "ADD_CHANNEL" ||
-    state.type === "EDIT_CHANNEL"
+    state.type ===
+      "ADD_CHANNEL" ||
+    state.type ===
+      "EDIT_CHANNEL"
   ) {
     await handleChannelInput(
       env,
@@ -378,7 +375,8 @@ async function handleCallback(
   }
 
   if (
-    data === "user:menu"
+    data ===
+    "user:menu"
   ) {
     await showMainMenu(
       env,
@@ -390,7 +388,9 @@ async function handleCallback(
   }
 
   if (
-    data.startsWith("product:")
+    data.startsWith(
+      "product:"
+    )
   ) {
     const productId =
       data.split(":")[1];
@@ -406,7 +406,92 @@ async function handleCallback(
   }
 
   if (
-    !data.startsWith("admin:")
+    data.startsWith(
+      "order:create:"
+    )
+  ) {
+    const productId =
+      data.split(":")[2];
+
+    const product =
+      await getProduct(
+        env,
+        productId
+      );
+
+    if (
+      !product ||
+      !product.is_active
+    ) {
+      await editMessage(
+        env,
+        chatId,
+        messageId,
+        "❌ Produk tidak tersedia.",
+        [
+          [
+            {
+              text: "◀️ KEMBALI",
+              callback_data:
+                "user:menu",
+            },
+          ],
+        ]
+      );
+
+      return;
+    }
+
+    try {
+      await editMessage(
+        env,
+        chatId,
+        messageId,
+        "⏳ Membuat pembayaran..."
+      );
+
+      const order =
+        await createPayment(
+          env,
+          chatId,
+          product
+        );
+
+      await sendPaymentQr(
+        env,
+        chatId,
+        order
+      );
+    } catch (error) {
+      console.error(error);
+
+      await editMessage(
+        env,
+        chatId,
+        messageId,
+        `❌ ${
+          error?.message ||
+          "Gagal membuat pembayaran."
+        }`,
+        [
+          [
+            {
+              text: "◀️ KEMBALI",
+              callback_data:
+                `product:${productId}`,
+            },
+          ],
+        ]
+      );
+    }
+
+    return;
+  }
+
+  if (
+    !data.startsWith(
+      "admin:"
+    )
   ) {
     return;
   }
@@ -424,7 +509,8 @@ async function handleCallback(
     data.split(":");
 
   if (
-    data === "admin:menu"
+    data ===
+    "admin:menu"
   ) {
     await deleteAdminState(
       env,
@@ -441,7 +527,8 @@ async function handleCallback(
   }
 
   if (
-    data === "admin:payment"
+    data ===
+    "admin:payment"
   ) {
     await showPaymentMenu(
       env,
@@ -520,7 +607,8 @@ async function handleCallback(
   }
 
   if (
-    data === "admin:products"
+    data ===
+    "admin:products"
   ) {
     await showAdminProducts(
       env,
@@ -927,7 +1015,8 @@ async function handleCallback(
   }
 
   if (
-    data === "admin:channel"
+    data ===
+    "admin:channel"
   ) {
     await deleteAdminState(
       env,
@@ -1139,10 +1228,20 @@ async function getProduct(
   env,
   productId
 ) {
+  const id =
+    Number(productId);
+
+  if (
+    !Number.isSafeInteger(id) ||
+    id <= 0
+  ) {
+    return null;
+  }
+
   const rows =
     await supabase(
       env,
-      `products?id=eq.${Number(productId)}&limit=1`
+      `products?id=eq.${id}&limit=1`
     );
 
   return rows?.[0] || null;
@@ -1154,7 +1253,9 @@ async function deleteAdminState(
 ) {
   return supabase(
     env,
-    `settings?key=eq.admin_state_${telegramId}`,
+    `settings?key=eq.admin_state_${encodeURIComponent(
+      telegramId
+    )}`,
     "DELETE"
   );
 }
