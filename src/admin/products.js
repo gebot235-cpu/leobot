@@ -495,11 +495,11 @@ export async function handleAddProductInput(
 ) {
   const value = message.text?.trim();
 
-  if (!value) {
-    return true;
-  }
-
   if (state.step === "NAME") {
+    if (!value) {
+      return true;
+    }
+
     const nextState = {
       ...state,
       step: "DESCRIPTION",
@@ -547,6 +547,10 @@ Kirim deskripsi produk:`,
   }
 
   if (state.step === "DESCRIPTION") {
+    if (!value) {
+      return true;
+    }
+
     const nextState = {
       ...state,
       step: "PRICE",
@@ -588,7 +592,7 @@ Contoh:
   }
 
   if (state.step === "PRICE") {
-    if (!/^\d+$/.test(value)) {
+    if (!value || !/^\d+$/.test(value)) {
       return editMessage(
         env,
         message.chat.id,
@@ -623,8 +627,7 @@ Contoh:
           ? "DURATION"
           : "FILE",
       price,
-      file_id:
-        state.file_id || null,
+      file_id: state.file_id || null,
     };
 
     await updateState(
@@ -670,9 +673,18 @@ Contoh:
 
 Langkah 4
 
-📎 Kirim file digital sekarang.
+📎 Kirim file/media digital sekarang.
 
-File bisa berupa dokumen atau foto.`,
+Bisa berupa:
+📷 Foto
+📄 Dokumen
+🎥 Video
+🎵 Audio
+🎙️ Voice
+🎞️ Animation
+📹 Video Note
+🖼️ Sticker
+dan media Telegram lainnya.`,
       [
         [
           {
@@ -685,18 +697,24 @@ File bisa berupa dokumen atau foto.`,
   }
 
   if (state.step === "FILE") {
-    const fileId =
-      message.document?.file_id ||
-      message.photo?.at(-1)?.file_id;
+    const fileId = getTelegramFileId(message);
 
     if (!fileId) {
       return editMessage(
         env,
         message.chat.id,
         state.message_id,
-`❌ File tidak ditemukan.
+`❌ Media/file tidak ditemukan.
 
-Kirim file digital berupa dokumen atau foto.`,
+Kirim media atau file yang didukung Telegram:
+📷 Foto
+📄 Dokumen
+🎥 Video
+🎵 Audio
+🎙️ Voice
+🎞️ Animation
+📹 Video Note
+🖼️ Sticker`,
         [
           [
             {
@@ -734,7 +752,7 @@ Kirim file digital berupa dokumen atau foto.`,
   }
 
   if (state.step === "DURATION") {
-    if (!/^\d+$/.test(value)) {
+    if (!value || !/^\d+$/.test(value)) {
       return editMessage(
         env,
         message.chat.id,
@@ -963,7 +981,6 @@ export async function toggleProductChannel(
   ];
 
   const id = Number(channelId);
-
   const index = selected.indexOf(id);
 
   if (index === -1) {
@@ -1070,7 +1087,7 @@ async function showAddConfirmation(
   }
 
   if (state.product_type === "DIGITAL") {
-    text += `\n📎 File: ${state.file_id ? "Tersedia" : "Belum ada"}`;
+    text += `\n📎 Media/File: ${state.file_id ? "Tersedia" : "Belum ada"}`;
   }
 
   if (state.description) {
@@ -1108,10 +1125,6 @@ export async function saveNewProduct(
 ) {
   const state = await getState(env, chatId);
 
-  if (!state) {
-    return;
-  }
-
   if (
     !state.name ||
     !state.price ||
@@ -1138,9 +1151,9 @@ export async function saveNewProduct(
       env,
       chatId,
       messageId,
-`❌ File digital belum ada.
+`❌ File/media digital belum ada.
 
-Silakan upload file terlebih dahulu.`,
+Silakan upload media/file terlebih dahulu.`,
       [
         [
           {
@@ -1199,9 +1212,7 @@ Silakan upload file terlebih dahulu.`,
   }
 
   if (state.product_type === "VIP") {
-    for (
-      const channelId of state.selected_channels
-    ) {
+    for (const channelId of state.selected_channels) {
       await supabase(
         env,
         "product_channels",
@@ -1257,10 +1268,8 @@ export async function showProductChannels(
 ) {
   await deleteState(env, chatId);
 
-  const product = await getProduct(
-    env,
-    productId
-  );
+  const product =
+    await getProduct(env, productId);
 
   if (
     !product ||
@@ -1693,6 +1702,50 @@ export async function cancelEditProductChannels(
     messageId,
     productId
   );
+}
+
+/**
+ * Mengambil file_id dari semua jenis media Telegram
+ * yang umum memiliki file_id.
+ */
+function getTelegramFileId(message) {
+  if (!message) {
+    return null;
+  }
+
+  if (message.document?.file_id) {
+    return message.document.file_id;
+  }
+
+  if (message.photo?.length) {
+    return message.photo.at(-1)?.file_id || null;
+  }
+
+  if (message.video?.file_id) {
+    return message.video.file_id;
+  }
+
+  if (message.audio?.file_id) {
+    return message.audio.file_id;
+  }
+
+  if (message.voice?.file_id) {
+    return message.voice.file_id;
+  }
+
+  if (message.animation?.file_id) {
+    return message.animation.file_id;
+  }
+
+  if (message.video_note?.file_id) {
+    return message.video_note.file_id;
+  }
+
+  if (message.sticker?.file_id) {
+    return message.sticker.file_id;
+  }
+
+  return null;
 }
 
 async function getProduct(
