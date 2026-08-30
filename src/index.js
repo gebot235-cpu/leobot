@@ -65,6 +65,15 @@ import {
 } from "./admin/digital.js";
 
 import {
+  showPaymentMenu,
+  startPaymentSetting,
+  handlePaymentSettingInput,
+  cancelPaymentSetting,
+  savePaymentSetting,
+  showPaymentConfig,
+} from "./admin/payment.js";
+
+import {
   showMainMenu,
   showProduct,
 } from "./user/menu.js";
@@ -228,6 +237,19 @@ async function handleMessage(
     "EDIT_DIGITAL_FILE"
   ) {
     await handleDigitalFileInput(
+      env,
+      message,
+      state
+    );
+
+    return;
+  }
+
+  if (
+    state.type ===
+    "PAYMENT_SETTING"
+  ) {
+    await handlePaymentSettingInput(
       env,
       message,
       state
@@ -405,6 +427,85 @@ async function handleCallback(
     return;
   }
 
+  /*
+   * =========================
+   * PEMBAYARAN
+   * =========================
+   */
+
+  if (
+    data ===
+    "admin:payment"
+  ) {
+    await showPaymentMenu(
+      env,
+      chatId,
+      messageId
+    );
+
+    return;
+  }
+
+  if (
+    data ===
+    "admin:payment:config"
+  ) {
+    await showPaymentConfig(
+      env,
+      chatId,
+      messageId
+    );
+
+    return;
+  }
+
+  if (
+    parts[0] === "admin" &&
+    parts[1] === "payment" &&
+    parts[2] === "setting"
+  ) {
+    await startPaymentSetting(
+      env,
+      chatId,
+      messageId,
+      parts[3]
+    );
+
+    return;
+  }
+
+  if (
+    data ===
+    "admin:payment:save"
+  ) {
+    await savePaymentSetting(
+      env,
+      chatId,
+      messageId
+    );
+
+    return;
+  }
+
+  if (
+    data ===
+    "admin:payment:cancel"
+  ) {
+    await cancelPaymentSetting(
+      env,
+      chatId,
+      messageId
+    );
+
+    return;
+  }
+
+  /*
+   * =========================
+   * PRODUK
+   * =========================
+   */
+
   if (
     data ===
     "admin:products"
@@ -486,6 +587,12 @@ async function handleCallback(
     return;
   }
 
+  /*
+   * =========================
+   * PRODUCT VIEW
+   * =========================
+   */
+
   if (
     parts[0] === "admin" &&
     parts[1] === "product" &&
@@ -521,6 +628,12 @@ async function handleCallback(
 
     return;
   }
+
+  /*
+   * =========================
+   * DIGITAL
+   * =========================
+   */
 
   if (
     parts[0] === "admin" &&
@@ -628,6 +741,12 @@ async function handleCallback(
     return;
   }
 
+  /*
+   * =========================
+   * PRODUCT EDIT
+   * =========================
+   */
+
   if (
     parts[0] === "admin" &&
     parts[1] === "product" &&
@@ -719,6 +838,12 @@ async function handleCallback(
 
     return;
   }
+
+  /*
+   * =========================
+   * PRODUCT CHANNELS
+   * =========================
+   */
 
   if (
     parts[0] === "admin" &&
@@ -812,6 +937,33 @@ async function handleCallback(
 
     return;
   }
+
+  /*
+   * =========================
+   * PRODUCT TOGGLE / DELETE
+   * =========================
+   */
+
+  if (
+    parts[0] === "admin" &&
+    parts[1] === "product" &&
+    parts[2] === "toggle"
+  ) {
+    await toggleProduct(
+      env,
+      chatId,
+      messageId,
+      parts[3]
+    );
+
+    return;
+  }
+
+  /*
+   * =========================
+   * CHANNEL
+   * =========================
+   */
 
   if (
     data ===
@@ -910,6 +1062,12 @@ async function handleCallback(
     return;
   }
 
+  /*
+   * =========================
+   * MESSAGES
+   * =========================
+   */
+
   if (
     data ===
     "admin:messages"
@@ -999,15 +1157,21 @@ async function handleCallback(
     return;
   }
 
+  /*
+   * =========================
+   * SETTINGS
+   * =========================
+   */
+
   if (
-    data === "admin:payment" ||
-    data === "admin:settings"
+    data ===
+    "admin:settings"
   ) {
     await editMessage(
       env,
       chatId,
       messageId,
-      "⚠️ Menu ini belum tersedia.",
+      "⚙️ PENGATURAN\n\nMenu pengaturan belum tersedia.",
       [
         [
           {
@@ -1018,6 +1182,8 @@ async function handleCallback(
         ],
       ]
     );
+
+    return;
   }
 }
 
