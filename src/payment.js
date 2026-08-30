@@ -1,5 +1,5 @@
 import {
-  sendMessage,
+  sendPhoto,
   editMessage,
 } from "./telegram.js";
 
@@ -618,7 +618,8 @@ export async function createPayment(
                   ? 1
                   : 0,
             }),
-        });
+        }
+      );
   } catch {
     await updateOrder(
       env,
@@ -708,6 +709,21 @@ export async function createPayment(
     );
   }
 
+  if (!qrUrl) {
+    await updateOrder(
+      env,
+      order.id,
+      {
+        status:
+          "FAILED",
+      }
+    );
+
+    throw new Error(
+      "BuatQris tidak mengembalikan QRIS."
+    );
+  }
+
   await updateOrder(
     env,
     order.id,
@@ -715,7 +731,7 @@ export async function createPayment(
       payment_id:
         paymentId,
       qr_url:
-        qrUrl || null,
+        qrUrl,
       qr_expires_at:
         expiresAt,
     }
@@ -727,7 +743,7 @@ export async function createPayment(
     payment_id:
       paymentId,
     qr_url:
-      qrUrl || null,
+      qrUrl,
     qr_expires_at:
       expiresAt,
   };
@@ -741,18 +757,12 @@ export async function sendPaymentQr(
   if (
     !order?.qr_url
   ) {
-    return sendMessage(
-      env,
-      chatId,
-`💳 PEMBAYARAN
-
-Order: ${order.order_code}
-
-QRIS tidak tersedia. Silakan coba lagi.`
+    throw new Error(
+      "QRIS tidak tersedia."
     );
   }
 
-  return sendMessage(
+  return sendPhoto(
     env,
     chatId,
     order.qr_url
