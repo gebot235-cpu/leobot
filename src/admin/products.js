@@ -621,8 +621,10 @@ Contoh:
       step:
         state.product_type === "VIP"
           ? "DURATION"
-          : "CONFIRM",
+          : "FILE",
       price,
+      file_id:
+        state.file_id || null,
     };
 
     await updateState(
@@ -659,6 +661,69 @@ Contoh:
         ]
       );
     }
+
+    return editMessage(
+      env,
+      message.chat.id,
+      state.message_id,
+`➕ TAMBAH DIGITAL
+
+Langkah 4
+
+📎 Kirim file digital sekarang.
+
+File bisa berupa dokumen atau foto.`,
+      [
+        [
+          {
+            text: "❌ BATAL",
+            callback_data: "admin:product:cancel",
+          },
+        ],
+      ]
+    );
+  }
+
+  if (state.step === "FILE") {
+    const fileId =
+      message.document?.file_id ||
+      message.photo?.at(-1)?.file_id;
+
+    if (!fileId) {
+      return editMessage(
+        env,
+        message.chat.id,
+        state.message_id,
+`❌ File tidak ditemukan.
+
+Kirim file digital berupa dokumen atau foto.`,
+        [
+          [
+            {
+              text: "❌ BATAL",
+              callback_data: "admin:product:cancel",
+            },
+          ],
+        ]
+      );
+    }
+
+    const nextState = {
+      ...state,
+      step: "CONFIRM",
+      file_id: fileId,
+    };
+
+    await updateState(
+      env,
+      message.chat.id,
+      nextState
+    );
+
+    await deleteInput(
+      env,
+      message
+    );
 
     return showAddConfirmation(
       env,
@@ -1004,6 +1069,10 @@ async function showAddConfirmation(
     }
   }
 
+  if (state.product_type === "DIGITAL") {
+    text += `\n📎 File: ${state.file_id ? "Tersedia" : "Belum ada"}`;
+  }
+
   if (state.description) {
     text += `\n\n📝 ${state.description}`;
   }
@@ -1061,6 +1130,29 @@ export async function saveNewProduct(
     return;
   }
 
+  if (
+    state.product_type === "DIGITAL" &&
+    !state.file_id
+  ) {
+    return editMessage(
+      env,
+      chatId,
+      messageId,
+`❌ File digital belum ada.
+
+Silakan upload file terlebih dahulu.`,
+      [
+        [
+          {
+            text: "❌ BATAL",
+            callback_data:
+              "admin:product:cancel",
+          },
+        ],
+      ]
+    );
+  }
+
   const rows = await supabase(
     env,
     "products",
@@ -1074,6 +1166,10 @@ export async function saveNewProduct(
       duration_days:
         state.product_type === "VIP"
           ? Number(state.duration_days)
+          : null,
+      file_id:
+        state.product_type === "DIGITAL"
+          ? state.file_id
           : null,
       is_active: true,
     },
