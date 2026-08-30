@@ -21,7 +21,6 @@ export async function telegramApi(env, method, data = {}) {
   return result.result;
 }
 
-
 export async function sendMessage(
   env,
   chatId,
@@ -46,6 +45,20 @@ export async function sendMessage(
   );
 }
 
+export async function sendPhoto(
+  env,
+  chatId,
+  photo
+) {
+  return telegramApi(
+    env,
+    "sendPhoto",
+    {
+      chat_id: chatId,
+      photo,
+    }
+  );
+}
 
 export async function editMessage(
   env,
@@ -77,7 +90,6 @@ export async function editMessage(
   );
 }
 
-
 export async function deleteMessage(
   env,
   chatId,
@@ -92,7 +104,6 @@ export async function deleteMessage(
     }
   );
 }
-
 
 export async function answerCallback(
   env,
