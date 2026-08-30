@@ -1,45 +1,59 @@
 import {
   sendMessage,
   editMessage,
-} from "./telegram.js";
+} from "../telegram.js";
 
 import {
   supabase,
-} from "./supabase.js";
+} from "../supabase.js";
 
-const BUATQRIS_API = "https://api.buatqris.site";
+const BUATQRIS_API =
+  "https://api.buatqris.site";
 
 export async function showPaymentMenu(
   env,
   chatId,
   messageId
 ) {
-  const settings = await getPaymentSettings(env);
-
-  const text =
-`💳 PEMBAYARAN
-
-Status: ${settings.enabled ? "🟢 AKTIF" : "🔴 NONAKTIF"}
-
-QRIS: ${settings.qris_method}
-
-Mode: ${settings.test ? "TEST" : "LIVE"}
-
-Fee: ${settings.fee_type === "percent"
-    ? `${settings.fee_value}%`
-    : `Rp${Number(settings.fee_value || 0).toLocaleString("id-ID")}`}`;
+  const settings =
+    await getPaymentSettings(env);
 
   return editMessage(
     env,
     chatId,
     messageId,
-    text,
+`💳 PEMBAYARAN
+
+Status: ${
+      settings.enabled
+        ? "🟢 AKTIF"
+        : "🔴 NONAKTIF"
+    }
+
+QRIS: ${
+      settings.qris_method
+    }
+
+Mode: ${
+      settings.test
+        ? "TEST"
+        : "LIVE"
+    }
+
+Fee: ${
+      settings.fee_type === "percent"
+        ? `${settings.fee_value}%`
+        : `Rp${Number(
+            settings.fee_value || 0
+          ).toLocaleString("id-ID")}`
+    }`,
     [
       [
         {
-          text: settings.enabled
-            ? "🔴 NONAKTIFKAN"
-            : "🟢 AKTIFKAN",
+          text:
+            settings.enabled
+              ? "🔴 NONAKTIFKAN"
+              : "🟢 AKTIFKAN",
           callback_data:
             "admin:payment:toggle",
         },
@@ -48,14 +62,7 @@ Fee: ${settings.fee_type === "percent"
         {
           text: "⚙️ ATUR PEMBAYARAN",
           callback_data:
-            "admin:payment:settings",
-        },
-      ],
-      [
-        {
-          text: "📈 PENDAPATAN",
-          callback_data:
-            "admin:payment:income",
+            "admin:payment:config",
         },
       ],
       [
@@ -69,12 +76,13 @@ Fee: ${settings.fee_type === "percent"
   );
 }
 
-export async function showPaymentSettings(
+export async function showPaymentConfig(
   env,
   chatId,
   messageId
 ) {
-  const settings = await getPaymentSettings(env);
+  const settings =
+    await getPaymentSettings(env);
 
   return editMessage(
     env,
@@ -86,10 +94,18 @@ Account ID:
 ${maskValue(settings.account_id)}
 
 Secret Token:
-${settings.secret_token ? "••••••••" : "Belum diatur"}
+${
+      settings.secret_token
+        ? "••••••••"
+        : "Belum diatur"
+    }
 
 Webhook Secret:
-${settings.webhook_secret ? "••••••••" : "Belum diatur"}
+${
+      settings.webhook_secret
+        ? "••••••••"
+        : "Belum diatur"
+    }
 
 QRIS Method:
 ${settings.qris_method}
@@ -98,43 +114,47 @@ Mode:
 ${settings.test ? "TEST" : "LIVE"}
 
 Fee:
-${settings.fee_type === "percent"
-    ? `${settings.fee_value}%`
-    : `Rp${Number(settings.fee_value || 0).toLocaleString("id-ID")}`}`,
+${
+      settings.fee_type === "percent"
+        ? `${settings.fee_value}%`
+        : `Rp${Number(
+            settings.fee_value || 0
+          ).toLocaleString("id-ID")}`
+    }`,
     [
       [
         {
           text: "🔑 ACCOUNT ID",
           callback_data:
-            "admin:payment:field:account_id",
+            "admin:payment:setting:account_id",
         },
       ],
       [
         {
           text: "🔐 SECRET TOKEN",
           callback_data:
-            "admin:payment:field:secret_token",
+            "admin:payment:setting:secret_token",
         },
       ],
       [
         {
           text: "🛡️ WEBHOOK SECRET",
           callback_data:
-            "admin:payment:field:webhook_secret",
+            "admin:payment:setting:webhook_secret",
         },
       ],
       [
         {
-          text: "📊 ATUR FEE",
+          text: "📊 FEE",
           callback_data:
-            "admin:payment:fee",
+            "admin:payment:setting:fee",
         },
       ],
       [
         {
           text: "🔄 QRIS METHOD",
           callback_data:
-            "admin:payment:method",
+            "admin:payment:setting:qris_method",
         },
       ],
       [
@@ -143,7 +163,7 @@ ${settings.fee_type === "percent"
             ? "🟢 LIVE MODE"
             : "🧪 TEST MODE",
           callback_data:
-            "admin:payment:test",
+            "admin:payment:setting:test",
         },
       ],
       [
@@ -157,16 +177,100 @@ ${settings.fee_type === "percent"
   );
 }
 
-export async function startPaymentFieldEdit(
+export async function startPaymentSetting(
   env,
   chatId,
   messageId,
   field
 ) {
+  const settings =
+    await getPaymentSettings(env);
+
+  if (
+    field === "test"
+  ) {
+    await setSetting(
+      env,
+      "payment_test",
+      settings.test ? "0" : "1"
+    );
+
+    return showPaymentConfig(
+      env,
+      chatId,
+      messageId
+    );
+  }
+
+  if (
+    field === "qris_method"
+  ) {
+    const method =
+      settings.qris_method ===
+      "qris_two"
+        ? "qris_one"
+        : "qris_two";
+
+    await setSetting(
+      env,
+      "payment_qris_method",
+      method
+    );
+
+    return showPaymentConfig(
+      env,
+      chatId,
+      messageId
+    );
+  }
+
+  if (
+    field === "fee"
+  ) {
+    await saveState(
+      env,
+      chatId,
+      {
+        type:
+          "PAYMENT_SETTING",
+        field:
+          "fee",
+        message_id:
+          messageId,
+      }
+    );
+
+    return editMessage(
+      env,
+      chatId,
+      messageId,
+`📊 ATUR FEE
+
+Format:
+persen 10
+atau
+nominal 500
+
+Kirim nilai fee:`,
+      [
+        [
+          {
+            text: "❌ BATAL",
+            callback_data:
+              "admin:payment:cancel",
+          },
+        ],
+      ]
+    );
+  }
+
   const labels = {
-    account_id: "ACCOUNT ID",
-    secret_token: "SECRET TOKEN",
-    webhook_secret: "WEBHOOK SECRET",
+    account_id:
+      "ACCOUNT ID",
+    secret_token:
+      "SECRET TOKEN",
+    webhook_secret:
+      "WEBHOOK SECRET",
   };
 
   if (!labels[field]) {
@@ -177,9 +281,11 @@ export async function startPaymentFieldEdit(
     env,
     chatId,
     {
-      type: "EDIT_PAYMENT",
+      type:
+        "PAYMENT_SETTING",
       field,
-      message_id: messageId,
+      message_id:
+        messageId,
     }
   );
 
@@ -202,239 +308,124 @@ Kirim nilai baru:`,
   );
 }
 
-export async function handlePaymentInput(
+export async function handlePaymentSettingInput(
   env,
   message,
   state
 ) {
-  const value = message.text?.trim();
+  const value =
+    message.text?.trim();
 
   if (!value) {
     return true;
   }
 
-  const allowed = [
-    "account_id",
-    "secret_token",
-    "webhook_secret",
-  ];
-
-  if (!allowed.includes(state.field)) {
-    return true;
-  }
-
-  await setSetting(
-    env,
-    `payment_${state.field}`,
-    value
-  );
-
-  await deleteState(
-    env,
-    message.chat.id
-  );
-
-  return showPaymentSettings(
-    env,
-    message.chat.id,
-    state.message_id
-  );
-}
-
-export async function togglePayment(
-  env,
-  chatId,
-  messageId
-) {
-  const settings = await getPaymentSettings(env);
-
-  await setSetting(
-    env,
-    "payment_enabled",
-    settings.enabled ? "false" : "true"
-  );
-
-  return showPaymentMenu(
-    env,
-    chatId,
-    messageId
-  );
-}
-
-export async function togglePaymentTest(
-  env,
-  chatId,
-  messageId
-) {
-  const settings = await getPaymentSettings(env);
-
-  await setSetting(
-    env,
-    "payment_test",
-    settings.test ? "0" : "1"
-  );
-
-  return showPaymentSettings(
-    env,
-    chatId,
-    messageId
-  );
-}
-
-export async function showPaymentFee(
-  env,
-  chatId,
-  messageId
-) {
-  const settings = await getPaymentSettings(env);
-
-  return editMessage(
-    env,
-    chatId,
-    messageId,
-`📊 ATUR FEE
-
-Fee saat ini:
-${settings.fee_type === "percent"
-    ? `${settings.fee_value}%`
-    : `Rp${Number(settings.fee_value || 0).toLocaleString("id-ID")}`}`,
-    [
-      [
-        {
-          text: "PERSEN",
-          callback_data:
-            "admin:payment:fee:type:percent",
-        },
-      ],
-      [
-        {
-          text: "NOMINAL",
-          callback_data:
-            "admin:payment:fee:type:fixed",
-        },
-      ],
-      [
-        {
-          text: "◀️ KEMBALI",
-          callback_data:
-            "admin:payment:settings",
-        },
-      ],
-    ]
-  );
-}
-
-export async function setPaymentFeeType(
-  env,
-  chatId,
-  messageId,
-  type
-) {
   if (
-    type !== "percent" &&
-    type !== "fixed"
+    state.field ===
+    "account_id"
   ) {
-    return;
-  }
+    await setSetting(
+      env,
+      "payment_account_id",
+      value
+    );
+  } else if (
+    state.field ===
+    "secret_token"
+  ) {
+    await setSetting(
+      env,
+      "payment_secret_token",
+      value
+    );
+  } else if (
+    state.field ===
+    "webhook_secret"
+  ) {
+    await setSetting(
+      env,
+      "payment_webhook_secret",
+      value
+    );
+  } else if (
+    state.field ===
+    "fee"
+  ) {
+    const match =
+      value.match(
+        /^(persen|nominal)\s+(\d+(?:\.\d+)?)$/i
+      );
 
-  await setSetting(
-    env,
-    "payment_fee_type",
-    type
-  );
+    if (!match) {
+      await editMessage(
+        env,
+        message.chat.id,
+        state.message_id,
+`❌ Format tidak valid.
 
-  await saveState(
-    env,
-    chatId,
-    {
-      type: "EDIT_PAYMENT_FEE",
-      message_id: messageId,
+Gunakan:
+persen 10
+
+atau:
+
+nominal 500`,
+        [
+          [
+            {
+              text: "❌ BATAL",
+              callback_data:
+                "admin:payment:cancel",
+            },
+          ],
+        ]
+      );
+
+      return true;
     }
-  );
 
-  return editMessage(
-    env,
-    chatId,
-    messageId,
-`📊 ATUR FEE
+    const type =
+      match[1].toLowerCase();
 
-Jenis:
-${type === "percent" ? "Persentase" : "Nominal"}
+    const number =
+      Number(match[2]);
 
-Kirim nilai fee:`,
-    [
-      [
-        {
-          text: "❌ BATAL",
-          callback_data:
-            "admin:payment:cancel",
-        },
-      ],
-    ]
-  );
-}
+    if (
+      !Number.isFinite(
+        number
+      ) ||
+      number < 0
+    ) {
+      return true;
+    }
 
-export async function handlePaymentFeeInput(
-  env,
-  message,
-  state
-) {
-  const value = message.text?.trim();
+    await setSetting(
+      env,
+      "payment_fee_type",
+      type === "persen"
+        ? "percent"
+        : "fixed"
+    );
 
-  if (!/^\d+(\.\d+)?$/.test(value || "")) {
-    return true;
+    await setSetting(
+      env,
+      "payment_fee_value",
+      String(number)
+    );
   }
-
-  const number = Number(value);
-
-  if (!Number.isFinite(number) || number < 0) {
-    return true;
-  }
-
-  await setSetting(
-    env,
-    "payment_fee_value",
-    String(number)
-  );
 
   await deleteState(
     env,
     message.chat.id
   );
 
-  return showPaymentSettings(
+  return showPaymentConfig(
     env,
     message.chat.id,
     state.message_id
   );
 }
 
-export async function setPaymentMethod(
-  env,
-  chatId,
-  messageId
-) {
-  const settings = await getPaymentSettings(env);
-
-  const method =
-    settings.qris_method === "qris_two"
-      ? "qris_one"
-      : "qris_two";
-
-  await setSetting(
-    env,
-    "payment_qris_method",
-    method
-  );
-
-  return showPaymentSettings(
-    env,
-    chatId,
-    messageId
-  );
-}
-
-export async function cancelPaymentProcess(
+export async function savePaymentSetting(
   env,
   chatId,
   messageId
@@ -444,7 +435,47 @@ export async function cancelPaymentProcess(
     chatId
   );
 
-  return showPaymentSettings(
+  return showPaymentConfig(
+    env,
+    chatId,
+    messageId
+  );
+}
+
+export async function cancelPaymentSetting(
+  env,
+  chatId,
+  messageId
+) {
+  await deleteState(
+    env,
+    chatId
+  );
+
+  return showPaymentConfig(
+    env,
+    chatId,
+    messageId
+  );
+}
+
+export async function togglePayment(
+  env,
+  chatId,
+  messageId
+) {
+  const settings =
+    await getPaymentSettings(env);
+
+  await setSetting(
+    env,
+    "payment_enabled",
+    settings.enabled
+      ? "false"
+      : "true"
+  );
+
+  return showPaymentMenu(
     env,
     chatId,
     messageId
@@ -456,38 +487,99 @@ export async function createPayment(
   telegramId,
   product
 ) {
-  const settings = await getPaymentSettings(env);
+  const settings =
+    await getPaymentSettings(env);
 
   if (
-    !settings.enabled ||
+    !settings.enabled
+  ) {
+    throw new Error(
+      "Pembayaran sedang nonaktif."
+    );
+  }
+
+  if (
     !settings.account_id ||
     !settings.secret_token
   ) {
     throw new Error(
-      "Pembayaran belum dikonfigurasi."
+      "Payment gateway belum dikonfigurasi."
     );
+  }
+
+  const baseAmount =
+    Number(product.price || 0);
+
+  if (
+    !Number.isSafeInteger(
+      baseAmount
+    ) ||
+    baseAmount <= 0
+  ) {
+    throw new Error(
+      "Harga produk tidak valid."
+    );
+  }
+
+  let amount =
+    baseAmount;
+
+  if (
+    settings.fee_type ===
+    "percent"
+  ) {
+    amount =
+      Math.round(
+        baseAmount +
+          baseAmount *
+            Number(
+              settings.fee_value ||
+                0
+            ) /
+            100
+      );
+  } else {
+    amount =
+      Math.round(
+        baseAmount +
+          Number(
+            settings.fee_value ||
+              0
+          )
+      );
   }
 
   const orderCode =
     `INV-${Date.now()}-${telegramId}`;
 
-  const rows = await supabase(
-    env,
-    "orders",
-    "POST",
-    {
-      order_code: orderCode,
-      telegram_id: Number(telegramId),
-      product_id: Number(product.id),
-      amount: Number(product.price),
-      status: "PENDING",
-    },
-    {
-      Prefer: "return=representation",
-    }
-  );
+  const rows =
+    await supabase(
+      env,
+      "orders",
+      "POST",
+      {
+        order_code:
+          orderCode,
+        telegram_id:
+          Number(
+            telegramId
+          ),
+        product_id:
+          Number(
+            product.id
+          ),
+        amount,
+        status:
+          "PENDING",
+      },
+      {
+        Prefer:
+          "return=representation",
+      }
+    );
 
-  const order = rows?.[0];
+  const order =
+    rows?.[0];
 
   if (!order) {
     throw new Error(
@@ -495,50 +587,91 @@ export async function createPayment(
     );
   }
 
-  const response = await fetch(
-    BUATQRIS_API,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type":
-          "application/json",
-      },
-      body: JSON.stringify({
-        action: "api_create_qris",
-        account_id:
-          settings.account_id,
-        secret_token:
-          settings.secret_token,
-        amount:
-          Number(product.price),
-        description:
-          `Pembayaran order #${orderCode}`,
-        qris_method:
-          settings.qris_method,
-        test:
-          settings.test ? 1 : 0,
-      }),
-    }
-  );
+  let response;
 
-  const data = await response.json();
+  try {
+    response =
+      await fetch(
+        BUATQRIS_API,
+        {
+          method:
+            "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          body:
+            JSON.stringify({
+              action:
+                "api_create_qris",
+              account_id:
+                settings.account_id,
+              secret_token:
+                settings.secret_token,
+              amount,
+              description:
+                `Pembayaran order #${orderCode}`,
+              qris_method:
+                settings.qris_method,
+              test:
+                settings.test
+                  ? 1
+                  : 0,
+            }),
+          }
+        }
+      );
+  } catch {
+    await updateOrder(
+      env,
+      order.id,
+      {
+        status:
+          "FAILED",
+      }
+    );
+
+    throw new Error(
+      "Tidak dapat menghubungi BuatQris."
+    );
+  }
+
+  let data;
+
+  try {
+    data =
+      await response.json();
+  } catch {
+    await updateOrder(
+      env,
+      order.id,
+      {
+        status:
+          "FAILED",
+      }
+    );
+
+    throw new Error(
+      "Respons BuatQris tidak valid."
+    );
+  }
 
   if (
     !response.ok ||
-    !data ||
-    data.success === false
+    data?.success === false
   ) {
     await updateOrder(
       env,
       order.id,
       {
-        status: "FAILED",
+        status:
+          "FAILED",
       }
     );
 
     throw new Error(
       data?.message ||
-      "Gagal membuat QRIS."
+        "Gagal membuat QRIS."
     );
   }
 
@@ -558,15 +691,31 @@ export async function createPayment(
     data.expires_at ||
     data.data?.expires_at ||
     new Date(
-      Date.now() + 15 * 60 * 1000
+      Date.now() +
+        15 * 60 * 1000
     ).toISOString();
+
+  if (!paymentId) {
+    await updateOrder(
+      env,
+      order.id,
+      {
+        status:
+          "FAILED",
+      }
+    );
+
+    throw new Error(
+      "BuatQris tidak mengembalikan transaction_id."
+    );
+  }
 
   await updateOrder(
     env,
     order.id,
     {
       payment_id:
-        paymentId || null,
+        paymentId,
       qr_url:
         qrUrl || null,
       qr_expires_at:
@@ -576,9 +725,13 @@ export async function createPayment(
 
   return {
     ...order,
-    payment_id: paymentId,
-    qr_url: qrUrl,
-    qr_expires_at: expiresAt,
+    amount,
+    payment_id:
+      paymentId,
+    qr_url:
+      qrUrl || null,
+    qr_expires_at:
+      expiresAt,
   };
 }
 
@@ -587,20 +740,24 @@ export async function sendPaymentQr(
   chatId,
   order
 ) {
-  if (!order?.qr_url) {
-    return;
+  if (
+    !order?.qr_url
+  ) {
+    return sendMessage(
+      env,
+      chatId,
+`💳 PEMBAYARAN
+
+Order: ${order.order_code}
+
+QRIS tidak tersedia. Silakan coba lagi.`
+    );
   }
 
   return sendMessage(
     env,
     chatId,
-    `💳 PEMBAYARAN
-
-Order: ${order.order_code}
-
-Silakan scan QRIS untuk membayar.
-
-⏳ QRIS memiliki batas waktu pembayaran.`
+    order.qr_url
   );
 }
 
@@ -620,13 +777,24 @@ export async function handleBuatQrisWebhook(
     await getPaymentSettings(env);
 
   if (
-    !settings.webhook_secret ||
-    !verifySignature(
+    !settings.webhook_secret
+  ) {
+    return new Response(
+      "Webhook secret belum diatur",
+      {
+        status: 503,
+      }
+    );
+  }
+
+  const valid =
+    await verifySignature(
       body,
       signature,
       settings.webhook_secret
-    )
-  ) {
+    );
+
+  if (!valid) {
     return new Response(
       "Unauthorized",
       {
@@ -638,7 +806,8 @@ export async function handleBuatQrisWebhook(
   let data;
 
   try {
-    data = JSON.parse(body);
+    data =
+      JSON.parse(body);
   } catch {
     return new Response(
       "Bad Request",
@@ -652,7 +821,12 @@ export async function handleBuatQrisWebhook(
     data.transaction_id;
 
   if (!transactionId) {
-    return new Response("OK");
+    return new Response(
+      "OK",
+      {
+        status: 200,
+      }
+    );
   }
 
   if (
@@ -664,9 +838,7 @@ export async function handleBuatQrisWebhook(
       transactionId,
       data
     );
-  }
-
-  if (
+  } else if (
     data.event ===
       "payment.expired" ||
     data.event ===
@@ -674,7 +846,9 @@ export async function handleBuatQrisWebhook(
   ) {
     await supabase(
       env,
-      `orders?payment_id=eq.${encodeURIComponent(transactionId)}`,
+      `orders?payment_id=eq.${encodeURIComponent(
+        transactionId
+      )}`,
       "PATCH",
       {
         status:
@@ -702,17 +876,24 @@ async function processPaymentSuccess(
   const rows =
     await supabase(
       env,
-      `orders?payment_id=eq.${encodeURIComponent(transactionId)}&limit=1`
+      `orders?payment_id=eq.${encodeURIComponent(
+        transactionId
+      )}&limit=1`
     );
 
-  const order = rows?.[0];
+  const order =
+    rows?.[0];
 
   if (!order) {
     return;
   }
 
-  if (order.status === "PAID" ||
-      order.status === "COMPLETED") {
+  if (
+    order.status ===
+      "PAID" ||
+    order.status ===
+      "COMPLETED"
+  ) {
     return;
   }
 
@@ -720,64 +901,13 @@ async function processPaymentSuccess(
     env,
     order.id,
     {
-      status: "PAID",
+      status:
+        "PAID",
       paid_at:
         data.paid_at ||
         new Date().toISOString(),
     }
   );
-
-  await processPaidOrder(
-    env,
-    order
-  );
-}
-
-async function processPaidOrder(
-  env,
-  order
-) {
-  const products =
-    await supabase(
-      env,
-      `products?id=eq.${Number(order.product_id)}&limit=1`
-    );
-
-  const product =
-    products?.[0];
-
-  if (!product) {
-    return;
-  }
-
-  if (
-    product.type === "DIGITAL"
-  ) {
-    await updateOrder(
-      env,
-      order.id,
-      {
-        status:
-          "COMPLETED",
-        completed_at:
-          new Date().toISOString(),
-      }
-    );
-
-    return;
-  }
-
-  if (
-    product.type === "VIP"
-  ) {
-    await updateOrder(
-      env,
-      order.id,
-      {
-        status: "PAID",
-      }
-    );
-  }
 }
 
 async function updateOrder(
@@ -787,7 +917,9 @@ async function updateOrder(
 ) {
   return supabase(
     env,
-    `orders?id=eq.${Number(orderId)}`,
+    `orders?id=eq.${Number(
+      orderId
+    )}`,
     "PATCH",
     data
   );
@@ -803,65 +935,106 @@ async function getPaymentSettings(
     );
 
   const result = {
-    enabled: true,
-    account_id: "",
-    secret_token: "",
-    webhook_secret: "",
-    qris_method: "qris_two",
-    test: false,
-    fee_type: "percent",
-    fee_value: 0,
+    enabled:
+      true,
+    account_id:
+      "",
+    secret_token:
+      "",
+    webhook_secret:
+      "",
+    qris_method:
+      "qris_two",
+    test:
+      false,
+    fee_type:
+      "percent",
+    fee_value:
+      0,
   };
 
-  for (const row of rows || []) {
+  for (
+    const row of
+      rows || []
+  ) {
     const key =
-      String(row.key || "");
+      String(
+        row.key || ""
+      );
 
     const value =
       row.value;
 
-    if (key === "payment_enabled") {
+    if (
+      key ===
+      "payment_enabled"
+    ) {
       result.enabled =
         value === true ||
         value === "true" ||
         value === "1";
     }
 
-    if (key === "payment_account_id") {
+    if (
+      key ===
+      "payment_account_id"
+    ) {
       result.account_id =
         value || "";
     }
 
-    if (key === "payment_secret_token") {
+    if (
+      key ===
+      "payment_secret_token"
+    ) {
       result.secret_token =
         value || "";
     }
 
-    if (key === "payment_webhook_secret") {
+    if (
+      key ===
+      "payment_webhook_secret"
+    ) {
       result.webhook_secret =
         value || "";
     }
 
-    if (key === "payment_qris_method") {
+    if (
+      key ===
+      "payment_qris_method"
+    ) {
       result.qris_method =
-        value || "qris_two";
+        value ||
+        "qris_two";
     }
 
-    if (key === "payment_test") {
+    if (
+      key ===
+      "payment_test"
+    ) {
       result.test =
         value === true ||
         value === "true" ||
         value === "1";
     }
 
-    if (key === "payment_fee_type") {
+    if (
+      key ===
+      "payment_fee_type"
+    ) {
       result.fee_type =
-        value || "percent";
+        value ||
+        "percent";
     }
 
-    if (key === "payment_fee_value") {
+    if (
+      key ===
+      "payment_fee_value"
+    ) {
       result.fee_value =
-        Number(value || 0);
+        Number(
+          value || 0
+        );
     }
   }
 
@@ -879,7 +1052,8 @@ async function setSetting(
     "POST",
     {
       key,
-      value: String(value),
+      value:
+        String(value),
       updated_at:
         new Date().toISOString(),
     },
@@ -913,7 +1087,9 @@ async function deleteState(
   );
 }
 
-function maskValue(value) {
+function maskValue(
+  value
+) {
   if (!value) {
     return "Belum diatur";
   }
@@ -921,7 +1097,9 @@ function maskValue(value) {
   const text =
     String(value);
 
-  if (text.length <= 6) {
+  if (
+    text.length <= 6
+  ) {
     return "••••••";
   }
 
@@ -932,7 +1110,7 @@ function maskValue(value) {
   );
 }
 
-function verifySignature(
+async function verifySignature(
   body,
   signature,
   secret
@@ -944,5 +1122,99 @@ function verifySignature(
     return false;
   }
 
-  return false;
+  const expectedPrefix =
+    "sha256=";
+
+  if (
+    !signature.startsWith(
+      expectedPrefix
+    )
+  ) {
+    return false;
+  }
+
+  const providedHex =
+    signature.slice(
+      expectedPrefix.length
+    );
+
+  if (
+    !/^[a-f0-9]{64}$/i.test(
+      providedHex
+    )
+  ) {
+    return false;
+  }
+
+  const encoder =
+    new TextEncoder();
+
+  const key =
+    await crypto.subtle.importKey(
+      "raw",
+      encoder.encode(secret),
+      {
+        name:
+          "HMAC",
+        hash:
+          "SHA-256",
+      },
+      false,
+      ["sign"]
+    );
+
+  const signatureBuffer =
+    await crypto.subtle.sign(
+      "HMAC",
+      key,
+      encoder.encode(body)
+    );
+
+  const expectedHex =
+    Array.from(
+      new Uint8Array(
+        signatureBuffer
+      )
+    )
+      .map(
+        byte =>
+          byte
+            .toString(16)
+            .padStart(
+              2,
+              "0"
+            )
+      )
+      .join("");
+
+  return timingSafeEqual(
+    providedHex.toLowerCase(),
+    expectedHex
+  );
+}
+
+function timingSafeEqual(
+  a,
+  b
+) {
+  if (
+    a.length !==
+    b.length
+  ) {
+    return false;
+  }
+
+  let result = 0;
+
+  for (
+    let i = 0;
+    i < a.length;
+    i++
+  ) {
+    result |=
+      a.charCodeAt(i) ^
+      b.charCodeAt(i);
+  }
+
+  return result === 0;
 }
