@@ -681,19 +681,115 @@ export async function deleteDigitalProduct(
     chatId
   );
 
-  await supabase(
-    env,
-    `products?id=eq.${Number(
-      productId
-    )}`,
-    "DELETE"
-  );
+  const id =
+    Number(productId);
+
+  if (
+    !Number.isSafeInteger(id) ||
+    id <= 0
+  ) {
+    return editMessage(
+      env,
+      chatId,
+      messageId,
+      "❌ ID produk tidak valid.",
+      [
+        [
+          {
+            text: "📦 PRODUK",
+            callback_data:
+              "admin:products",
+          },
+        ],
+      ]
+    );
+  }
+
+  const product =
+    await getProduct(
+      env,
+      id
+    );
+
+  if (!product) {
+    return editMessage(
+      env,
+      chatId,
+      messageId,
+      "❌ Produk tidak ditemukan.",
+      [
+        [
+          {
+            text: "📦 PRODUK",
+            callback_data:
+              "admin:products",
+          },
+        ],
+      ]
+    );
+  }
+
+  if (
+    product.type !== "DIGITAL"
+  ) {
+    return editMessage(
+      env,
+      chatId,
+      messageId,
+      "❌ Produk bukan produk digital.",
+      [
+        [
+          {
+            text: "◀️ KEMBALI",
+            callback_data:
+              `admin:digital:view:${id}`,
+          },
+        ],
+      ]
+    );
+  }
+
+  try {
+    await supabase(
+      env,
+      `products?id=eq.${encodeURIComponent(id)}`,
+      "DELETE"
+    );
+  } catch (error) {
+    console.error(
+      "deleteDigitalProduct error:",
+      error
+    );
+
+    return editMessage(
+      env,
+      chatId,
+      messageId,
+      "❌ Gagal menghapus produk.",
+      [
+        [
+          {
+            text: "🔄 COBA LAGI",
+            callback_data:
+              `admin:digital:delete:${id}`,
+          },
+        ],
+        [
+          {
+            text: "◀️ PRODUK",
+            callback_data:
+              "admin:products",
+          },
+        ],
+      ]
+    );
+  }
 
   return editMessage(
     env,
     chatId,
     messageId,
-    "✅ PRODUK DIGITAL DIHAPUS.",
+    "✅ PRODUK DIGITAL BERHASIL DIHAPUS.",
     [
       [
         {
@@ -712,20 +808,3 @@ export async function deleteDigitalProduct(
     ]
   );
 }
-
-async function getProduct(
-  env,
-  productId
-) {
-  const rows =
-    await supabase(
-      env,
-      `products?id=eq.${Number(
-        productId
-      )}&limit=1`
-    );
-
-  return rows?.[0] || null;
-}
-
-
