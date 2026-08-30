@@ -323,7 +323,7 @@ Kirim angka yang lebih dari 0.`,
               callback_data:
                 `admin:digital:cancel:${state.product_id}`,
             },
-          },
+          ],
         ]
       );
 
