@@ -161,7 +161,7 @@ Pilih data yang ingin diubah:`,
       ],
       [
         {
-          text: "📎 FILE",
+          text: "📎 FILE / MEDIA",
           callback_data:
             `admin:digital:file:${product.id}`,
         },
@@ -283,7 +283,7 @@ export async function handleDigitalFieldInput(
         env,
         message.chat.id,
         state.message_id,
-`❌ Harga tidak valid.
+        `❌ Harga tidak valid.
 
 Kirim angka saja.`,
         [
@@ -313,7 +313,7 @@ Kirim angka saja.`,
         env,
         message.chat.id,
         state.message_id,
-`❌ Harga tidak valid.
+        `❌ Harga tidak valid.
 
 Kirim angka yang lebih dari 0.`,
         [
@@ -405,12 +405,23 @@ export async function startDigitalFileEdit(
     env,
     chatId,
     messageId,
-`📎 GANTI FILE
+`📎 GANTI FILE / MEDIA
 
 Produk:
 ${product.name}
 
-Kirim file digital sekarang.`,
+Kirim file atau media digital sekarang.
+
+Bisa berupa:
+📷 Foto
+📄 Dokumen
+🎬 Video
+🎵 Audio
+🎙️ Voice
+🎞️ Animation
+🖼️ Sticker
+📹 Video Note
+dan media Telegram lainnya.`,
     [
       [
         {
@@ -429,10 +440,29 @@ export async function handleDigitalFileInput(
   state
 ) {
   const fileId =
-    message.document?.file_id ||
-    message.photo?.at(-1)?.file_id;
+    getTelegramMediaFileId(
+      message
+    );
 
   if (!fileId) {
+    await editMessage(
+      env,
+      message.chat.id,
+      state.message_id,
+`❌ MEDIA TIDAK DITEMUKAN
+
+Kirim media/file Telegram yang memiliki file_id.`,
+      [
+        [
+          {
+            text: "❌ BATAL",
+            callback_data:
+              `admin:digital:cancel:${state.product_id}`,
+          },
+        ],
+      ]
+    );
+
     return true;
   }
 
@@ -469,6 +499,68 @@ export async function handleDigitalFileInput(
     state.message_id,
     state.product_id
   );
+}
+
+/**
+ * Ambil file_id dari seluruh jenis media Telegram
+ * yang umum digunakan untuk produk digital.
+ */
+function getTelegramMediaFileId(
+  message
+) {
+  if (!message) {
+    return null;
+  }
+
+  if (
+    message.document?.file_id
+  ) {
+    return message.document.file_id;
+  }
+
+  if (
+    message.photo?.length
+  ) {
+    return message.photo.at(-1)?.file_id || null;
+  }
+
+  if (
+    message.video?.file_id
+  ) {
+    return message.video.file_id;
+  }
+
+  if (
+    message.audio?.file_id
+  ) {
+    return message.audio.file_id;
+  }
+
+  if (
+    message.voice?.file_id
+  ) {
+    return message.voice.file_id;
+  }
+
+  if (
+    message.animation?.file_id
+  ) {
+    return message.animation.file_id;
+  }
+
+  if (
+    message.video_note?.file_id
+  ) {
+    return message.video_note.file_id;
+  }
+
+  if (
+    message.sticker?.file_id
+  ) {
+    return message.sticker.file_id;
+  }
+
+  return null;
 }
 
 export async function cancelDigitalProcess(
