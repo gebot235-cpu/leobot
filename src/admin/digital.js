@@ -15,10 +15,7 @@ export async function showDigitalProduct(
   productId
 ) {
   const product =
-    await getProduct(
-      env,
-      productId
-    );
+    await getProduct(env, productId);
 
   if (
     !product ||
@@ -41,10 +38,7 @@ export async function showDigitalProduct(
     );
   }
 
-  await deleteState(
-    env,
-    chatId
-  );
+  await deleteState(env, chatId);
 
   return editMessage(
     env,
@@ -91,7 +85,7 @@ ${product.description || "Tanpa deskripsi"}
         {
           text: "🗑️ HAPUS",
           callback_data:
-            `admin:product:delete:${product.id}`,
+            `admin:digital:delete:${product.id}`,
         },
       ],
       [
@@ -113,10 +107,7 @@ export async function showDigitalEdit(
   productId
 ) {
   const product =
-    await getProduct(
-      env,
-      productId
-    );
+    await getProduct(env, productId);
 
   if (
     !product ||
@@ -125,10 +116,7 @@ export async function showDigitalEdit(
     return;
   }
 
-  await deleteState(
-    env,
-    chatId
-  );
+  await deleteState(env, chatId);
 
   return editMessage(
     env,
@@ -188,10 +176,7 @@ export async function startDigitalFieldEdit(
   field
 ) {
   const product =
-    await getProduct(
-      env,
-      productId
-    );
+    await getProduct(env, productId);
 
   if (
     !product ||
@@ -206,8 +191,7 @@ export async function startDigitalFieldEdit(
     price: "HARGA",
   };
 
-  const label =
-    labels[field];
+  const label = labels[field];
 
   if (!label) {
     return;
@@ -217,13 +201,10 @@ export async function startDigitalFieldEdit(
     env,
     chatId,
     {
-      type:
-        "EDIT_DIGITAL",
-      product_id:
-        Number(productId),
+      type: "EDIT_DIGITAL",
+      product_id: Number(productId),
       field,
-      message_id:
-        messageId,
+      message_id: messageId,
     }
   );
 
@@ -268,20 +249,13 @@ export async function handleDigitalFieldInput(
     "price",
   ];
 
-  if (
-    !fields.includes(
-      state.field
-    )
-  ) {
+  if (!fields.includes(state.field)) {
     return true;
   }
 
-  let finalValue =
-    value;
+  let finalValue = value;
 
-  if (
-    state.field === "price"
-  ) {
+  if (state.field === "price") {
     if (!/^\d+$/.test(value)) {
       return editMessage(
         env,
@@ -302,20 +276,16 @@ Kirim angka saja.`,
       );
     }
 
-    const price =
-      Number(value);
+    const price = Number(value);
 
     if (
-      !Number.isSafeInteger(
-        price
-      ) ||
+      !Number.isSafeInteger(price) ||
       price <= 0
     ) {
       return true;
     }
 
-    finalValue =
-      price;
+    finalValue = price;
   }
 
   await supabase(
@@ -325,8 +295,7 @@ Kirim angka saja.`,
     )}`,
     "PATCH",
     {
-      [state.field]:
-        finalValue,
+      [state.field]: finalValue,
       updated_at:
         new Date().toISOString(),
     }
@@ -361,10 +330,7 @@ export async function startDigitalFileEdit(
   productId
 ) {
   const product =
-    await getProduct(
-      env,
-      productId
-    );
+    await getProduct(env, productId);
 
   if (
     !product ||
@@ -377,12 +343,9 @@ export async function startDigitalFileEdit(
     env,
     chatId,
     {
-      type:
-        "EDIT_DIGITAL_FILE",
-      product_id:
-        Number(productId),
-      message_id:
-        messageId,
+      type: "EDIT_DIGITAL_FILE",
+      product_id: Number(productId),
+      message_id: messageId,
     }
   );
 
@@ -422,6 +385,18 @@ export async function handleDigitalFileInput(
     return true;
   }
 
+  if (
+    state.type ===
+    "ADD_DIGITAL_FILE"
+  ) {
+    return handleAddDigitalFile(
+      env,
+      message,
+      state,
+      fileId
+    );
+  }
+
   await supabase(
     env,
     `products?id=eq.${Number(
@@ -429,8 +404,7 @@ export async function handleDigitalFileInput(
     )}`,
     "PATCH",
     {
-      file_id:
-        fileId,
+      file_id: fileId,
       updated_at:
         new Date().toISOString(),
     }
@@ -458,22 +432,284 @@ export async function handleDigitalFileInput(
 }
 
 
+async function handleAddDigitalFile(
+  env,
+  message,
+  state,
+  fileId
+) {
+  const nextState = {
+    ...state,
+    step: "CONFIRM",
+    file_id: fileId,
+  };
+
+  await saveState(
+    env,
+    message.chat.id,
+    nextState
+  );
+
+  try {
+    await deleteMessage(
+      env,
+      message.chat.id,
+      message.message_id
+    );
+  } catch {}
+
+  return showAddDigitalConfirmation(
+    env,
+    message.chat.id,
+    state.message_id,
+    nextState
+  );
+}
+
+
+export async function startAddDigitalFile(
+  env,
+  chatId,
+  messageId
+) {
+  const state =
+    await getState(env, chatId);
+
+  if (!state) {
+    return;
+  }
+
+  const nextState = {
+    ...state,
+    type: "ADD_DIGITAL",
+    step: "UPLOAD_FILE",
+    message_id: messageId,
+  };
+
+  await saveState(
+    env,
+    chatId,
+    nextState
+  );
+
+  return editMessage(
+    env,
+    chatId,
+    messageId,
+`➕ TAMBAH DIGITAL
+
+📦 ${state.name}
+
+💰 Rp${Number(
+      state.price || 0
+    ).toLocaleString("id-ID")}
+
+📎 Upload file digital sekarang.`,
+    [
+      [
+        {
+          text: "❌ BATAL",
+          callback_data:
+            "admin:product:cancel",
+        },
+      ],
+    ]
+  );
+}
+
+
+async function showAddDigitalConfirmation(
+  env,
+  chatId,
+  messageId,
+  state
+) {
+  return editMessage(
+    env,
+    chatId,
+    messageId,
+`➕ KONFIRMASI PRODUK DIGITAL
+
+📦 ${state.name}
+
+💰 Rp${Number(
+      state.price || 0
+    ).toLocaleString("id-ID")}
+
+📎 File: Tersedia
+
+${
+  state.description
+    ? `📝 ${state.description}`
+    : "📝 Tanpa deskripsi"
+}`,
+    [
+      [
+        {
+          text: "✅ SIMPAN",
+          callback_data:
+            "admin:digital:add:save",
+        },
+      ],
+      [
+        {
+          text: "❌ BATAL",
+          callback_data:
+            "admin:product:cancel",
+        },
+      ],
+    ]
+  );
+}
+
+
+export async function saveNewDigitalProduct(
+  env,
+  chatId,
+  messageId
+) {
+  const state =
+    await getState(env, chatId);
+
+  if (!state) {
+    return;
+  }
+
+  if (
+    !state.name ||
+    !state.price ||
+    !state.file_id
+  ) {
+    return;
+  }
+
+  const rows =
+    await supabase(
+      env,
+      "products",
+      "POST",
+      {
+        name: state.name,
+        description:
+          state.description || null,
+        price: Number(state.price),
+        type: "DIGITAL",
+        duration_days: null,
+        file_id: state.file_id,
+        is_active: true,
+      },
+      {
+        Prefer:
+          "return=representation",
+      }
+    );
+
+  const product = rows?.[0];
+
+  if (!product) {
+    return editMessage(
+      env,
+      chatId,
+      messageId,
+      "❌ Gagal menyimpan produk digital.",
+      [
+        [
+          {
+            text: "◀️ PRODUK",
+            callback_data:
+              "admin:products",
+          },
+        ],
+      ]
+    );
+  }
+
+  await deleteState(
+    env,
+    chatId
+  );
+
+  return editMessage(
+    env,
+    chatId,
+    messageId,
+`✅ PRODUK DIGITAL TERSIMPAN
+
+📦 ${product.name}
+
+💰 Rp${Number(
+      product.price || 0
+    ).toLocaleString("id-ID")}
+
+📎 File tersimpan.`,
+    [
+      [
+        {
+          text: "📦 PRODUK",
+          callback_data:
+            "admin:products",
+        },
+      ],
+      [
+        {
+          text: "◀️ ADMIN",
+          callback_data:
+            "admin:menu",
+        },
+      ],
+    ]
+  );
+}
+
+
 export async function cancelDigitalProcess(
   env,
   chatId,
   messageId,
-  productId
+  productId = null
 ) {
   await deleteState(
     env,
     chatId
   );
 
-  return showDigitalEdit(
+  if (productId) {
+    return showDigitalEdit(
+      env,
+      chatId,
+      messageId,
+      productId
+    );
+  }
+
+  return editMessage(
     env,
     chatId,
     messageId,
-    productId
+    "📦 PRODUK",
+    [
+      [
+        {
+          text: "➕ TAMBAH PRODUK",
+          callback_data:
+            "admin:product:add",
+        },
+      ],
+      [
+        {
+          text: "📋 DAFTAR PRODUK",
+          callback_data:
+            "admin:product:list",
+        },
+      ],
+      [
+        {
+          text: "◀️ KEMBALI",
+          callback_data:
+            "admin:menu",
+        },
+      ],
+    ]
   );
 }
 
@@ -588,6 +824,30 @@ async function getProduct(
     );
 
   return rows?.[0] || null;
+}
+
+
+async function getState(
+  env,
+  telegramId
+) {
+  const rows =
+    await supabase(
+      env,
+      `settings?key=eq.admin_state_${telegramId}&limit=1`
+    );
+
+  if (!rows?.length) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(
+      rows[0].value
+    );
+  } catch {
+    return null;
+  }
 }
 
 
