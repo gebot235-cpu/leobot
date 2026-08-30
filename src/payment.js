@@ -17,6 +17,11 @@ import {
   deliverProduct,
 } from "./fulfillment.js";
 
+import {
+  decryptSecret,
+  isEncryptedSecret,
+} from "./crypto.js";
+
 const BUATQRIS_API =
   "https://api.buatqris.site";
 
@@ -631,8 +636,8 @@ export async function createPayment(
                   ? 1
                   : 0,
             }),
-        }
-      );
+          }
+        );
   } catch {
     await updateOrder(
       env,
@@ -896,10 +901,7 @@ async function processPaymentSuccess(
 ) {
   /*
    * Update kondisional: hanya baris dengan status masih PENDING
-   * yang akan ter-update. Ini mencegah webhook duplikat (retry
-   * dari payment gateway) memicu pengiriman produk dua kali —
-   * request kedua tidak akan menemukan baris PENDING lagi
-   * sehingga `updated` akan kosong dan fungsi berhenti di situ.
+   * yang akan ter-update. Ini mencegah webhook duplikat.
    */
   const updated =
     await supabase(
@@ -925,11 +927,6 @@ async function processPaymentSuccess(
     updated?.[0];
 
   if (!order) {
-    /*
-     * Tidak ada baris yang cocok — order sudah diproses
-     * sebelumnya (webhook duplikat) atau order tidak ditemukan.
-     * Aman untuk berhenti di sini.
-     */
     return;
   }
 
@@ -953,12 +950,6 @@ async function processPaymentSuccess(
       error
     );
 
-    /*
-     * Status tetap PAID (bukan PENDING) supaya webhook duplikat
-     * dari gateway tidak mencoba mengirim ulang dari nol dan
-     * memicu race condition. Admin perlu mengirim manual atau
-     * kita retry lewat cron di masa depan.
-     */
     await updateOrder(
       env,
       order.id,
@@ -985,6 +976,22 @@ async function updateOrder(
   );
 }
 
+/**
+ * Membaca seluruh payment settings.
+ *
+ * payment_secret_token dan payment_webhook_secret
+ * mendukung dua format:
+ *
+ * 1. Format baru:
+ *    enc:v1:...
+ *
+ * 2. Format lama:
+ *    plaintext
+ *
+ * Jika ditemukan plaintext lama,
+ * secret langsung dimigrasikan menggunakan
+ * setSetting() -> upsertSetting() -> encryptSecret().
+ */
 async function getPaymentSettings(
   env
 ) {
@@ -1047,16 +1054,62 @@ async function getPaymentSettings(
       key ===
       "payment_secret_token"
     ) {
-      result.secret_token =
-        value || "";
+      if (value) {
+        result.secret_token =
+          await decryptSecret(
+            env,
+            value
+          );
+
+        /*
+         * Auto-migration:
+         * jika value belum terenkripsi,
+         * simpan ulang melalui upsertSetting().
+         */
+        if (
+          !isEncryptedSecret(value)
+        ) {
+          await setSetting(
+            env,
+            "payment_secret_token",
+            result.secret_token
+          );
+        }
+      } else {
+        result.secret_token =
+          "";
+      }
     }
 
     if (
       key ===
       "payment_webhook_secret"
     ) {
-      result.webhook_secret =
-        value || "";
+      if (value) {
+        result.webhook_secret =
+          await decryptSecret(
+            env,
+            value
+          );
+
+        /*
+         * Auto-migration:
+         * jika value belum terenkripsi,
+         * simpan ulang melalui upsertSetting().
+         */
+        if (
+          !isEncryptedSecret(value)
+        ) {
+          await setSetting(
+            env,
+            "payment_webhook_secret",
+            result.webhook_secret
+          );
+        }
+      } else {
+        result.webhook_secret =
+          "";
+      }
     }
 
     if (
