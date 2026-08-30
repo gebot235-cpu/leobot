@@ -1,25 +1,27 @@
 const ALGORITHM = "AES-GCM";
-const KEY_LENGTH = 256;
 const IV_LENGTH = 12;
 const TAG_LENGTH = 128;
 const PREFIX = "enc:v1:";
 
-function normalizeKey(value) {
-  const text = String(value || "").trim();
+const textEncoder = new TextEncoder();
+const textDecoder = new TextDecoder();
 
-  if (!text) {
+function getKeyBytes(value) {
+  const key = String(value || "").trim();
+
+  if (!key) {
     throw new Error(
       "PAYMENT_ENCRYPTION_KEY belum dikonfigurasi."
     );
   }
 
-  // Dukungan hex 64 karakter = 32 bytes
-  if (/^[a-f0-9]{64}$/i.test(text)) {
+  // Dukungan HEX 64 karakter = 32 bytes
+  if (/^[a-f0-9]{64}$/i.test(key)) {
     const bytes = new Uint8Array(32);
 
     for (let i = 0; i < 32; i++) {
       bytes[i] = parseInt(
-        text.slice(i * 2, i * 2 + 2),
+        key.slice(i * 2, i * 2 + 2),
         16
       );
     }
@@ -27,12 +29,12 @@ function normalizeKey(value) {
     return bytes;
   }
 
-  // Default: base64 / base64url
-  let base64 = text
+  // Dukungan Base64 / Base64URL
+  let base64 = key
     .replace(/-/g, "+")
     .replace(/_/g, "/");
 
-  while (base64.length % 4) {
+  while (base64.length % 4 !== 0) {
     base64 += "=";
   }
 
@@ -40,42 +42,40 @@ function normalizeKey(value) {
     const binary = atob(base64);
 
     if (binary.length !== 32) {
-      throw new Error(
-        "PAYMENT_ENCRYPTION_KEY harus berukuran 32 bytes."
-      );
+      throw new Error();
     }
 
-    return Uint8Array.from(
-      binary,
-      char => char.charCodeAt(0)
+    const bytes = new Uint8Array(
+      binary.length
     );
+
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+
+    return bytes;
   } catch {
     throw new Error(
-      "PAYMENT_ENCRYPTION_KEY harus berupa base64/base64url 32 bytes atau hex 64 karakter."
+      "PAYMENT_ENCRYPTION_KEY harus berupa Base64 32 bytes atau HEX 64 karakter."
     );
   }
 }
 
-async function importKey(env) {
-  const rawKey = normalizeKey(
-    env.PAYMENT_ENCRYPTION_KEY
-  );
-
+async function getCryptoKey(env) {
   return crypto.subtle.importKey(
     "raw",
-    rawKey,
+    getKeyBytes(
+      env.PAYMENT_ENCRYPTION_KEY
+    ),
     {
       name: ALGORITHM,
     },
     false,
-    [
-      "encrypt",
-      "decrypt",
-    ]
+    ["encrypt", "decrypt"]
   );
 }
 
-function bytesToBase64(bytes) {
+function toBase64(bytes) {
   let binary = "";
 
   for (const byte of bytes) {
@@ -85,16 +85,21 @@ function bytesToBase64(bytes) {
   return btoa(binary);
 }
 
-function base64ToBytes(value) {
+function fromBase64(value) {
   const binary = atob(value);
 
-  return Uint8Array.from(
-    binary,
-    char => char.charCodeAt(0)
+  const bytes = new Uint8Array(
+    binary.length
   );
+
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+
+  return bytes;
 }
 
-export function isEncrypted(value) {
+export function isEncryptedSecret(value) {
   return (
     typeof value === "string" &&
     value.startsWith(PREFIX)
@@ -103,50 +108,47 @@ export function isEncrypted(value) {
 
 export async function encryptSecret(
   env,
-  plaintext
+  value
 ) {
   if (
-    plaintext === null ||
-    plaintext === undefined ||
-    plaintext === ""
+    value === null ||
+    value === undefined ||
+    value === ""
   ) {
+    return value;
+  }
+
+  const plaintext = String(value);
+
+  // Jangan encrypt dua kali
+  if (isEncryptedSecret(plaintext)) {
     return plaintext;
   }
 
-  const text = String(plaintext);
-
-  if (isEncrypted(text)) {
-    return text;
-  }
-
-  const key = await importKey(env);
+  const key = await getCryptoKey(env);
 
   const iv = crypto.getRandomValues(
     new Uint8Array(IV_LENGTH)
   );
 
-  const encoded = new TextEncoder().encode(
-    text
-  );
+  const encrypted =
+    await crypto.subtle.encrypt(
+      {
+        name: ALGORITHM,
+        iv,
+        tagLength: TAG_LENGTH,
+      },
+      key,
+      textEncoder.encode(plaintext)
+    );
 
-  const encrypted = await crypto.subtle.encrypt(
-    {
-      name: ALGORITHM,
-      iv,
-      tagLength: TAG_LENGTH,
-    },
-    key,
-    encoded
-  );
-
-  return (
-    PREFIX +
-    bytesToBase64(iv) +
-    ":" +
-    bytesToBase64(
+  return [
+    PREFIX.slice(0, -1),
+    toBase64(iv),
+    toBase64(
       new Uint8Array(encrypted)
-    )
-  );
+    ),
+  ].join(":");
 }
 
 export async function decryptSecret(
@@ -161,36 +163,33 @@ export async function decryptSecret(
     return value;
   }
 
-  const text = String(value);
+  const encrypted = String(value);
 
-  // Plaintext lama: jangan gagal.
-  // Caller akan menangani migrasi.
-  if (!isEncrypted(text)) {
-    return text;
+  // Untuk data lama yang masih plaintext.
+  if (
+    !isEncryptedSecret(encrypted)
+  ) {
+    return encrypted;
   }
 
-  const payload = text.slice(
-    PREFIX.length
-  );
+  const parts = encrypted.split(":");
 
-  const parts = payload.split(":");
-
-  if (parts.length !== 2) {
+  if (parts.length !== 3) {
     throw new Error(
-      "Format encrypted secret tidak valid."
+      "Format encrypted payment secret tidak valid."
     );
   }
 
-  const iv = base64ToBytes(parts[0]);
-  const ciphertext = base64ToBytes(parts[1]);
+  const iv = fromBase64(parts[1]);
+  const ciphertext = fromBase64(parts[2]);
 
   if (iv.length !== IV_LENGTH) {
     throw new Error(
-      "IV encrypted secret tidak valid."
+      "IV encrypted payment secret tidak valid."
     );
   }
 
-  const key = await importKey(env);
+  const key = await getCryptoKey(env);
 
   try {
     const decrypted =
@@ -204,12 +203,12 @@ export async function decryptSecret(
         ciphertext
       );
 
-    return new TextDecoder().decode(
+    return textDecoder.decode(
       decrypted
     );
   } catch {
     throw new Error(
-      "Tidak dapat mendekripsi payment secret. Pastikan PAYMENT_ENCRYPTION_KEY benar."
+      "Gagal mendekripsi payment secret. Periksa PAYMENT_ENCRYPTION_KEY."
     );
   }
 }
