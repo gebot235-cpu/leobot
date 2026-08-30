@@ -199,24 +199,9 @@ async function handleMessage(
 
   if (
     state.type ===
-    "ADD_CHANNEL" ||
-    state.type ===
-    "EDIT_CHANNEL"
+    "ADD_DIGITAL_FILE"
   ) {
-    await handleChannelInput(
-      env,
-      message,
-      state
-    );
-
-    return;
-  }
-
-  if (
-    state.type ===
-    "EDIT_MESSAGE"
-  ) {
-    await handleMessageInput(
+    await handleDigitalFileInput(
       env,
       message,
       state
@@ -243,6 +228,34 @@ async function handleMessage(
     "EDIT_DIGITAL_FILE"
   ) {
     await handleDigitalFileInput(
+      env,
+      message,
+      state
+    );
+
+    return;
+  }
+
+  if (
+    state.type ===
+    "ADD_CHANNEL" ||
+    state.type ===
+    "EDIT_CHANNEL"
+  ) {
+    await handleChannelInput(
+      env,
+      message,
+      state
+    );
+
+    return;
+  }
+
+  if (
+    state.type ===
+    "EDIT_MESSAGE"
+  ) {
+    await handleMessageInput(
       env,
       message,
       state
@@ -314,8 +327,7 @@ async function handleCallback(
       env,
       callback.id
     );
-  } catch {
-  }
+  } catch {}
 
   if (
     !chatId ||
