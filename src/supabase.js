@@ -1,3 +1,13 @@
+import {
+  encryptSecret,
+} from "./crypto.js";
+
+const ENCRYPTED_SETTING_KEYS =
+  new Set([
+    "payment_secret_token",
+    "payment_webhook_secret",
+  ]);
+
 export async function supabase(
   env,
   path,
@@ -10,24 +20,39 @@ export async function supabase(
     {
       method,
       headers: {
-        apikey: env.SUPABASE_SERVICE_ROLE_KEY,
-        Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
-        "Content-Type": "application/json",
+        apikey:
+          env.SUPABASE_SERVICE_ROLE_KEY,
+        Authorization:
+          `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+        "Content-Type":
+          "application/json",
         ...headers,
       },
-      body: body ? JSON.stringify(body) : undefined,
+      body: body
+        ? JSON.stringify(body)
+        : undefined,
     }
   );
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Supabase error: ${error}`);
+    const error =
+      await response.text();
+
+    throw new Error(
+      `Supabase error: ${error}`
+    );
   }
 
   const contentType =
-    response.headers.get("content-type") || "";
+    response.headers.get(
+      "content-type"
+    ) || "";
 
-  if (contentType.includes("application/json")) {
+  if (
+    contentType.includes(
+      "application/json"
+    )
+  ) {
     return response.json();
   }
 
@@ -35,38 +60,76 @@ export async function supabase(
 }
 
 /**
- * Upsert baris key-value pada tabel `settings` TANPA bergantung
- * pada parameter on_conflict / unique constraint di database.
+ * Setting yang dianggap secret.
  *
- * Sebelumnya kode lain memakai POST + "Prefer: resolution=merge-duplicates"
- * tanpa "?on_conflict=key". Kalau kolom `key` bukan primary key di tabel,
- * PostgREST akan menolak (409) atau malah insert baris baru — sehingga
- * baris "key" yang sama bisa dobel dan pembacaan berikutnya (limit=1
- * tanpa order by) bisa mengambil baris yang salah/lama.
+ * Hanya credential payment yang dienkripsi.
+ * Setting biasa seperti:
+ * - payment_enabled
+ * - payment_account_id
+ * - payment_fee_type
+ * - payment_fee_value
+ * - payment_qris_method
+ * - payment_test
  *
- * Fix: coba UPDATE (PATCH) dulu berdasarkan key. Kalau tidak ada baris
- * yang cocok (array kosong), baru INSERT (POST). Ini aman untuk skema
- * apa pun, dengan atau tanpa unique constraint pada `key`.
+ * tetap plaintext.
+ */
+async function prepareSettingValue(
+  env,
+  key,
+  value
+) {
+  if (
+    !ENCRYPTED_SETTING_KEYS.has(key)
+  ) {
+    return String(value);
+  }
+
+  return encryptSecret(
+    env,
+    String(value)
+  );
+}
+
+/**
+ * Upsert baris key-value pada tabel settings.
+ *
+ * Secret payment otomatis dienkripsi
+ * sebelum disimpan ke Supabase.
  */
 export async function upsertSetting(
   env,
   key,
   value
 ) {
-  const patched = await supabase(
-    env,
-    `settings?key=eq.${encodeURIComponent(key)}`,
-    "PATCH",
-    {
-      value: String(value),
-      updated_at: new Date().toISOString(),
-    },
-    {
-      Prefer: "return=representation",
-    }
-  );
+  const storedValue =
+    await prepareSettingValue(
+      env,
+      key,
+      value
+    );
 
-  if (patched && patched.length > 0) {
+  const now =
+    new Date().toISOString();
+
+  const patched =
+    await supabase(
+      env,
+      `settings?key=eq.${encodeURIComponent(key)}`,
+      "PATCH",
+      {
+        value: storedValue,
+        updated_at: now,
+      },
+      {
+        Prefer:
+          "return=representation",
+      }
+    );
+
+  if (
+    patched &&
+    patched.length > 0
+  ) {
     return patched;
   }
 
@@ -76,11 +139,12 @@ export async function upsertSetting(
     "POST",
     {
       key,
-      value: String(value),
-      updated_at: new Date().toISOString(),
+      value: storedValue,
+      updated_at: now,
     },
     {
-      Prefer: "return=representation",
+      Prefer:
+        "return=representation",
     }
   );
 }
