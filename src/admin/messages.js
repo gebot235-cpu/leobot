@@ -70,7 +70,12 @@ Silakan scan QRIS untuk melakukan pembayaran.
     default:
 `✅ PEMBAYARAN BERHASIL
 
-Terima kasih, {first_name}!`,
+Terima kasih, {first_name}!
+
+📦 {product_name}
+🧾 Order: #{order_code}
+
+🔐 Silakan JOIN channel VIP melalui link/tombol di bawah.`,
   },
 
   payment_failed: {
