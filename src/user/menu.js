@@ -19,6 +19,10 @@ import {
 } from "../admin/messages.js";
 
 
+/* =========================================================
+ * USER MAIN MENU
+ * ========================================================= */
+
 export async function showMainMenu(
   env,
   chatId,
@@ -33,29 +37,51 @@ export async function showMainMenu(
   const text =
 `🦁 LEOBOT
 
-Selamat datang di toko kami! 👋
+Selamat datang di toko kami! 👋`;
 
-Silakan pilih produk:`;
+  const buttons = [];
 
-  const buttons =
-    products.map((product) => [
-      {
-        text:
-          `${product.type === "VIP" ? "🟢" : "📦"} ${product.name}`,
-        callback_data:
-          `product:${product.id}`,
-      },
-    ]);
-
-  if (settings.cs_contact) {
+  /*
+   * VIP ditampilkan terlebih dahulu.
+   */
+  if (
+    products.some(
+      (product) =>
+        product.type === "VIP"
+    )
+  ) {
     buttons.push([
       {
-        text: "📞 HUBUNGI CS",
-        callback_data: "user:cs",
+        text:
+          "🔐 PRODUK VIP",
+        callback_data:
+          "user:category:vip",
       },
     ]);
   }
 
+  /*
+   * DIGITAL ditampilkan setelah VIP.
+   */
+  if (
+    products.some(
+      (product) =>
+        product.type === "DIGITAL"
+    )
+  ) {
+    buttons.push([
+      {
+        text:
+          "📦 PRODUK DIGITAL",
+        callback_data:
+          "user:category:digital",
+      },
+    ]);
+  }
+
+  /*
+   * Jika tidak ada produk aktif.
+   */
   if (buttons.length === 0) {
     const emptyText =
 `${text}
@@ -78,13 +104,11 @@ Saat ini belum ada produk yang tersedia.`;
     );
   }
 
+  /*
+   * Saat kembali ke menu menggunakan
+   * message yang sudah ada.
+   */
   if (messageId) {
-    /*
-     * Telegram tidak bisa mengubah pesan teks jadi pesan foto
-     * (dan sebaliknya) lewat editMessageText, jadi banner welcome
-     * hanya tampil saat mengirim pesan baru (mis. /start), bukan
-     * saat navigasi "kembali" ke menu yang sudah ada.
-     */
     return editMessage(
       env,
       chatId,
@@ -94,6 +118,9 @@ Saat ini belum ada produk yang tersedia.`;
     );
   }
 
+  /*
+   * Saat /start dan welcome photo tersedia.
+   */
   if (settings.welcome_photo) {
     return sendPhoto(
       env,
@@ -113,6 +140,110 @@ Saat ini belum ada produk yang tersedia.`;
 }
 
 
+/* =========================================================
+ * PRODUCT CATEGORY
+ * ========================================================= */
+
+export async function showProductCategory(
+  env,
+  chatId,
+  messageId,
+  type
+) {
+  const products =
+    await getActiveProducts(env);
+
+  const settings =
+    await getShopSettings(env);
+
+  const productType =
+    type === "vip"
+      ? "VIP"
+      : "DIGITAL";
+
+  const title =
+    productType === "VIP"
+      ? "🔐 PRODUK VIP"
+      : "📦 PRODUK DIGITAL";
+
+  const filteredProducts =
+    products.filter(
+      (product) =>
+        product.type ===
+        productType
+    );
+
+  const buttons =
+    filteredProducts.map(
+      (product) => [
+        {
+          text:
+            `${
+              productType === "VIP"
+                ? "🟢"
+                : "📦"
+            } ${product.name}`,
+
+          callback_data:
+            `product:${product.id}`,
+        },
+      ]
+    );
+
+  /*
+   * Jika kategori kosong.
+   */
+  if (
+    filteredProducts.length === 0
+  ) {
+    buttons.push([
+      {
+        text:
+          settings.btn_back_label,
+        callback_data:
+          "user:menu",
+      },
+    ]);
+
+    return editMessage(
+      env,
+      chatId,
+      messageId,
+`${title}
+
+Belum ada produk tersedia.`,
+      buttons
+    );
+  }
+
+  /*
+   * Tombol kembali ke menu utama.
+   */
+  buttons.push([
+    {
+      text:
+        settings.btn_back_label,
+      callback_data:
+        "user:menu",
+    },
+  ]);
+
+  return editMessage(
+    env,
+    chatId,
+    messageId,
+`${title}
+
+Silakan pilih produk:`,
+    buttons
+  );
+}
+
+
+/* =========================================================
+ * CS CONTACT
+ * ========================================================= */
+
 export async function showCsContact(
   env,
   chatId,
@@ -127,18 +258,27 @@ export async function showCsContact(
     messageId,
 `📞 KONTAK CS
 
-${settings.cs_contact || "Belum ada kontak CS yang diatur."}`,
+${
+  settings.cs_contact ||
+  "Belum ada kontak CS yang diatur."
+}`,
     [
       [
         {
-          text: settings.btn_back_label,
-          callback_data: "user:menu",
+          text:
+            settings.btn_back_label,
+          callback_data:
+            "user:menu",
         },
       ],
     ]
   );
 }
 
+
+/* =========================================================
+ * PRODUCT DETAIL
+ * ========================================================= */
 
 export async function showProduct(
   env,
@@ -148,7 +288,10 @@ export async function showProduct(
 ) {
   const [product, settings] =
     await Promise.all([
-      getProduct(env, productId),
+      getProduct(
+        env,
+        productId
+      ),
       getShopSettings(env),
     ]);
 
@@ -164,7 +307,8 @@ export async function showProduct(
       [
         [
           {
-            text: settings.btn_back_label,
+            text:
+              settings.btn_back_label,
             callback_data:
               "user:menu",
           },
@@ -190,7 +334,10 @@ export async function showProduct(
     )
     .replaceAll(
       "{price}",
-      formatPriceDigits(product.price, settings)
+      formatPriceDigits(
+        product.price,
+        settings
+      )
     )
     .replaceAll(
       "{duration}",
@@ -207,14 +354,16 @@ export async function showProduct(
     [
       [
         {
-          text: settings.btn_pay_label,
+          text:
+            settings.btn_pay_label,
           callback_data:
             `order:create:${product.id}`,
         },
       ],
       [
         {
-          text: settings.btn_back_label,
+          text:
+            settings.btn_back_label,
           callback_data:
             "user:menu",
         },
