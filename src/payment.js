@@ -23,19 +23,19 @@ import {
 } from "./crypto.js";
 
 /*
- * Endpoint resmi Open API BuatQris.
+ * BuatQris Open API
  */
 const BUATQRIS_API =
   "https://app.buatqris.site/api";
 
 /*
- * Endpoint webhook Worker.
+ * Worker webhook tetap.
  *
- * GANTI bagian domain ini jika Worker Anda memakai
- * custom domain.
+ * Tidak perlu isi Callback URL di dashboard BuatQris
+ * karena URL ini dikirim pada setiap api_create_qris.
  */
-const WEBHOOK_PATH =
-  "/webhook/buatqris";
+const CALLBACK_URL =
+  "https://leobot.gebot235.workers.dev/webhook/buatqris";
 
 /* =========================================================
  * ADMIN PAYMENT MENU
@@ -217,11 +217,15 @@ export async function startPaymentSetting(
   const settings =
     await getPaymentSettings(env);
 
-  if (field === "test") {
+  if (
+    field === "test"
+  ) {
     await setSetting(
       env,
       "payment_test",
-      settings.test ? "0" : "1"
+      settings.test
+        ? "0"
+        : "1"
     );
 
     return showPaymentConfig(
@@ -231,9 +235,12 @@ export async function startPaymentSetting(
     );
   }
 
-  if (field === "qris_method") {
+  if (
+    field === "qris_method"
+  ) {
     const method =
-      settings.qris_method === "qris_two"
+      settings.qris_method ===
+      "qris_two"
         ? "qris_one"
         : "qris_two";
 
@@ -250,7 +257,9 @@ export async function startPaymentSetting(
     );
   }
 
-  if (field === "fee") {
+  if (
+    field === "fee"
+  ) {
     await saveState(
       env,
       chatId,
@@ -271,6 +280,7 @@ export async function startPaymentSetting(
 `📊 ATUR FEE
 
 Format:
+
 persen 10
 
 atau
@@ -299,7 +309,9 @@ Kirim nilai fee:`,
       "WEBHOOK SECRET",
   };
 
-  if (!labels[field]) {
+  if (
+    !labels[field]
+  ) {
     return;
   }
 
@@ -317,10 +329,17 @@ Kirim nilai fee:`,
 
   const currentlySet =
     field === "account_id"
-      ? Boolean(settings.account_id)
-      : field === "secret_token"
-      ? Boolean(settings.secret_token)
-      : Boolean(settings.webhook_secret);
+      ? Boolean(
+          settings.account_id
+        )
+      : field ===
+        "secret_token"
+      ? Boolean(
+          settings.secret_token
+        )
+      : Boolean(
+          settings.webhook_secret
+        );
 
   const buttons = [
     [
@@ -332,7 +351,9 @@ Kirim nilai fee:`,
     ],
   ];
 
-  if (currentlySet) {
+  if (
+    currentlySet
+  ) {
     buttons.unshift([
       {
         text: "🗑️ HAPUS NILAI INI",
@@ -368,16 +389,11 @@ export async function confirmClearPaymentSetting(
       "WEBHOOK SECRET",
   };
 
-  if (!labels[field]) {
+  if (
+    !labels[field]
+  ) {
     return;
   }
-
-  const warning =
-    field === "webhook_secret"
-      ? "⚠️ Kalau WEBHOOK SECRET dihapus, pembayaran otomatis tidak akan berfungsi."
-      : field === "secret_token"
-      ? "⚠️ Kalau SECRET TOKEN dihapus, bot tidak dapat membuat QRIS baru."
-      : "⚠️ Kalau ACCOUNT ID dihapus, pembayaran tidak akan berfungsi.";
 
   return editMessage(
     env,
@@ -385,20 +401,22 @@ export async function confirmClearPaymentSetting(
     messageId,
 `🗑️ HAPUS ${labels[field]}?
 
-${warning}
+⚠️ Data ini akan dihapus.
 
 Yakin mau hapus?`,
     [
       [
         {
-          text: "✅ YA, HAPUS",
+          text:
+            "✅ YA, HAPUS",
           callback_data:
             `admin:payment:setting:clear:confirm:${field}`,
         },
       ],
       [
         {
-          text: "❌ BATAL",
+          text:
+            "❌ BATAL",
           callback_data:
             `admin:payment:setting:${field}`,
         },
@@ -422,7 +440,9 @@ export async function clearPaymentSetting(
       "payment_webhook_secret",
   };
 
-  if (!keys[field]) {
+  if (
+    !keys[field]
+  ) {
     return;
   }
 
@@ -456,14 +476,18 @@ export async function handlePaymentSettingInput(
     return true;
   }
 
-  if (state.field === "account_id") {
+  if (
+    state.field ===
+    "account_id"
+  ) {
     await setSetting(
       env,
       "payment_account_id",
       value
     );
   } else if (
-    state.field === "secret_token"
+    state.field ===
+    "secret_token"
   ) {
     await setSetting(
       env,
@@ -474,7 +498,8 @@ export async function handlePaymentSettingInput(
       )
     );
   } else if (
-    state.field === "webhook_secret"
+    state.field ===
+    "webhook_secret"
   ) {
     await setSetting(
       env,
@@ -485,7 +510,8 @@ export async function handlePaymentSettingInput(
       )
     );
   } else if (
-    state.field === "fee"
+    state.field ===
+    "fee"
   ) {
     const match =
       value.match(
@@ -493,11 +519,11 @@ export async function handlePaymentSettingInput(
       );
 
     if (!match) {
-      await editMessage(
+      return editMessage(
         env,
         message.chat.id,
         state.message_id,
-`❌ Format tidak valid.
+`❌ Format salah.
 
 Gunakan:
 
@@ -509,15 +535,14 @@ nominal 500`,
         [
           [
             {
-              text: "❌ BATAL",
+              text:
+                "❌ BATAL",
               callback_data:
                 "admin:payment:cancel",
             },
           ],
         ]
       );
-
-      return true;
     }
 
     const type =
@@ -527,7 +552,9 @@ nominal 500`,
       Number(match[2]);
 
     if (
-      !Number.isFinite(number) ||
+      !Number.isFinite(
+        number
+      ) ||
       number < 0
     ) {
       return true;
@@ -618,7 +645,7 @@ export async function togglePayment(
 }
 
 /* =========================================================
- * CREATE PAYMENT
+ * CREATE QRIS
  * ========================================================= */
 
 export async function createPayment(
@@ -630,7 +657,9 @@ export async function createPayment(
   const settings =
     await getPaymentSettings(env);
 
-  if (!settings.enabled) {
+  if (
+    !settings.enabled
+  ) {
     throw new Error(
       "Pembayaran sedang nonaktif."
     );
@@ -654,10 +683,14 @@ export async function createPayment(
   }
 
   const baseAmount =
-    Number(product.price || 0);
+    Number(
+      product.price || 0
+    );
 
   if (
-    !Number.isSafeInteger(baseAmount) ||
+    !Number.isSafeInteger(
+      baseAmount
+    ) ||
     baseAmount <= 0
   ) {
     throw new Error(
@@ -677,7 +710,8 @@ export async function createPayment(
         baseAmount +
           baseAmount *
             Number(
-              settings.fee_value || 0
+              settings.fee_value ||
+                0
             ) /
             100
       );
@@ -686,7 +720,8 @@ export async function createPayment(
       Math.round(
         baseAmount +
           Number(
-            settings.fee_value || 0
+            settings.fee_value ||
+              0
           )
       );
   }
@@ -703,9 +738,13 @@ export async function createPayment(
         order_code:
           orderCode,
         telegram_id:
-          Number(telegramId),
+          Number(
+            telegramId
+          ),
         product_id:
-          Number(product.id),
+          Number(
+            product.id
+          ),
         amount,
         first_name:
           firstName || null,
@@ -727,77 +766,69 @@ export async function createPayment(
     );
   }
 
-  const callbackUrl =
-    new URL(
-      WEBHOOK_PATH,
-      "https://"
-        + (
-          env.WORKER_DOMAIN ||
-          "localhost"
-        )
-    ).toString();
+  /*
+   * API BuatQris menggunakan:
+   *
+   * POST https://app.buatqris.site/api
+   *
+   * Content-Type:
+   * application/x-www-form-urlencoded
+   */
+
+  const form =
+    new URLSearchParams();
+
+  form.set(
+    "action",
+    "api_create_qris"
+  );
+
+  form.set(
+    "account_id",
+    settings.account_id
+  );
+
+  form.set(
+    "secret_token",
+    settings.secret_token
+  );
+
+  form.set(
+    "amount",
+    String(amount)
+  );
+
+  form.set(
+    "description",
+    `Pembayaran order #${orderCode}`
+  );
+
+  form.set(
+    "qris_method",
+    settings.qris_method
+  );
+
+  form.set(
+    "test",
+    settings.test
+      ? "1"
+      : "0"
+  );
+
+  /*
+   * INI BAGIAN PENTING.
+   *
+   * Callback dikirim langsung ke transaksi.
+   * Tidak perlu mengandalkan Callback URL dashboard.
+   */
+  form.set(
+    "callback_url",
+    CALLBACK_URL
+  );
 
   let response;
 
   try {
-    /*
-     * BuatQris mendokumentasikan Content-Type
-     * application/x-www-form-urlencoded.
-     */
-    const form =
-      new URLSearchParams();
-
-    form.set(
-      "action",
-      "api_create_qris"
-    );
-
-    form.set(
-      "account_id",
-      settings.account_id
-    );
-
-    form.set(
-      "secret_token",
-      settings.secret_token
-    );
-
-    form.set(
-      "amount",
-      String(amount)
-    );
-
-    form.set(
-      "description",
-      `Pembayaran order #${orderCode}`
-    );
-
-    form.set(
-      "qris_method",
-      settings.qris_method
-    );
-
-    form.set(
-      "test",
-      settings.test ? "1" : "0"
-    );
-
-    /*
-     * Callback URL dikirim eksplisit agar transaksi
-     * tidak bergantung pada setting callback dashboard.
-     *
-     * Jika WORKER_DOMAIN tidak tersedia, admin harus
-     * mengatur callback_url di dashboard BuatQris.
-     */
-    if (
-      env.WORKER_DOMAIN
-    ) {
-      form.set(
-        "callback_url",
-        callbackUrl
-      );
-    }
-
     response =
       await fetch(
         BUATQRIS_API,
@@ -807,6 +838,8 @@ export async function createPayment(
           headers: {
             "Content-Type":
               "application/x-www-form-urlencoded",
+            "User-Agent":
+              "Mozilla/5.0",
           },
           body:
             form.toString(),
@@ -856,6 +889,11 @@ export async function createPayment(
     !response.ok ||
     data?.success === false
   ) {
+    console.error(
+      "BuatQris create error:",
+      data
+    );
+
     await updateOrder(
       env,
       order.id,
@@ -873,19 +911,22 @@ export async function createPayment(
   }
 
   const paymentData =
-    data?.data || data;
+    data?.data ||
+    data;
 
   const paymentId =
     paymentData?.transaction_id ||
-    paymentData?.payment_id ||
     data?.transaction_id ||
+    paymentData?.payment_id ||
     data?.payment_id;
 
   const qrUrl =
     paymentData?.qr_url ||
-    paymentData?.qr_code ||
     data?.qr_url ||
-    data?.qr_code;
+    paymentData?.qris_image ||
+    data?.qris_image ||
+    paymentData?.payment_url ||
+    data?.payment_url;
 
   const expiresAt =
     paymentData?.expires_at ||
@@ -930,7 +971,9 @@ export async function createPayment(
     order.id,
     {
       payment_id:
-        String(paymentId),
+        String(
+          paymentId
+        ),
       qr_url:
         qrUrl,
       qr_expires_at:
@@ -942,7 +985,9 @@ export async function createPayment(
     ...order,
     amount,
     payment_id:
-      String(paymentId),
+      String(
+        paymentId
+      ),
     qr_url:
       qrUrl,
     qr_expires_at:
@@ -955,7 +1000,9 @@ export async function sendPaymentQr(
   chatId,
   order
 ) {
-  if (!order?.qr_url) {
+  if (
+    !order?.qr_url
+  ) {
     throw new Error(
       "QRIS tidak tersedia."
     );
@@ -969,7 +1016,7 @@ export async function sendPaymentQr(
 }
 
 /* =========================================================
- * WEBHOOK
+ * WEBHOOK BUATQRIS
  * ========================================================= */
 
 export async function handleBuatQrisWebhook(
@@ -977,9 +1024,7 @@ export async function handleBuatQrisWebhook(
   request
 ) {
   /*
-   * Penting:
-   * signature harus dihitung menggunakan RAW BODY,
-   * sebelum JSON.parse().
+   * RAW BODY harus dipakai untuk HMAC.
    */
   const body =
     await request.text();
@@ -989,9 +1034,14 @@ export async function handleBuatQrisWebhook(
       "X-BuatQris-Signature"
     );
 
-  const headerEvent =
+  const eventHeader =
     request.headers.get(
       "X-BuatQris-Event"
+    );
+
+  const delivery =
+    request.headers.get(
+      "X-BuatQris-Delivery"
     );
 
   const settings =
@@ -1001,7 +1051,7 @@ export async function handleBuatQrisWebhook(
     !settings.webhook_secret
   ) {
     console.error(
-      "BuatQris webhook: secret belum dikonfigurasi."
+      "Webhook: Webhook Secret belum ada."
     );
 
     return new Response(
@@ -1021,7 +1071,7 @@ export async function handleBuatQrisWebhook(
 
   if (!valid) {
     console.error(
-      "BuatQris webhook: signature tidak valid."
+      "Webhook: signature invalid."
     );
 
     return new Response(
@@ -1046,34 +1096,34 @@ export async function handleBuatQrisWebhook(
     );
   }
 
-  /*
-   * BuatQris mendokumentasikan event di body.
-   * Header dipakai sebagai fallback.
-   */
   const event =
     data?.event ||
-    headerEvent ||
+    eventHeader ||
     "";
 
   const transactionId =
     String(
       data?.transaction_id ||
       data?.data?.transaction_id ||
-      data?.payment_id ||
-      data?.data?.payment_id ||
+      delivery ||
       ""
     ).trim();
 
-  if (!transactionId) {
-    console.error(
-      "BuatQris webhook: transaction_id kosong.",
-      data
-    );
+  console.log(
+    "BuatQris webhook:",
+    JSON.stringify({
+      event,
+      transactionId,
+      status:
+        data?.status,
+      amount:
+        data?.amount,
+    })
+  );
 
-    /*
-     * Jangan retry webhook yang formatnya valid
-     * tetapi bukan payment event yang kita perlukan.
-     */
+  if (
+    !transactionId
+  ) {
     return new Response(
       "OK",
       {
@@ -1082,16 +1132,13 @@ export async function handleBuatQrisWebhook(
     );
   }
 
-  console.log(
-    "BuatQris webhook:",
-    event,
-    transactionId
-  );
-
   if (
     event ===
     "payment.success"
   ) {
+    /*
+     * Proses langsung.
+     */
     await processPaymentSuccess(
       env,
       transactionId,
@@ -1127,9 +1174,6 @@ async function processPaymentSuccess(
   transactionId,
   data
 ) {
-  /*
-   * Cari order berdasarkan payment_id.
-   */
   const orders =
     (await supabase(
       env,
@@ -1138,24 +1182,49 @@ async function processPaymentSuccess(
       )}&limit=1`
     )) || [];
 
-  const order =
+  let order =
     orders?.[0];
+
+  /*
+   * Kalau webhook datang sebelum database selesai
+   * menyimpan payment_id, coba cari berdasarkan
+   * transaction_id/order_code dari payload.
+   */
+  if (!order) {
+    const orderCode =
+      data?.order_code ||
+      data?.description
+        ?.match(
+          /#(INV-[^\s]+)/i
+        )?.[1];
+
+    if (
+      orderCode
+    ) {
+      const fallback =
+        (await supabase(
+          env,
+          `orders?order_code=eq.${encodeURIComponent(
+            orderCode
+          )}&limit=1`
+        )) || [];
+
+      order =
+        fallback?.[0];
+    }
+  }
 
   if (!order) {
     console.error(
-      "Payment success: order tidak ditemukan:",
+      "Payment success: order tidak ditemukan.",
       transactionId
     );
 
-    /*
-     * Gateway sudah benar mengirim webhook,
-     * tetapi order kita tidak ditemukan.
-     */
     return;
   }
 
   /*
-   * Jangan proses webhook kedua kali.
+   * Jangan proses ulang.
    */
   if (
     order.status ===
@@ -1163,23 +1232,14 @@ async function processPaymentSuccess(
     order.status ===
       "DELIVERED"
   ) {
-    console.log(
-      "Payment success: order sudah diproses:",
-      order.id
-    );
-
     return;
   }
 
   /*
    * Validasi nominal.
    *
-   * BuatQris:
-   * - amount = nominal transaksi QRIS
-   * - total_amount = nominal + fee
-   *
-   * Order bot menyimpan amount sebagai nominal
-   * yang harus dibayar user.
+   * BuatQris payload:
+   * amount = nominal transaksi
    */
   const paidAmount =
     Number(
@@ -1188,17 +1248,19 @@ async function processPaymentSuccess(
       0
     );
 
-  const orderAmount =
+  const expectedAmount =
     Number(
       order.amount || 0
     );
 
   if (
-    !Number.isFinite(paidAmount) ||
+    !Number.isFinite(
+      paidAmount
+    ) ||
     paidAmount <= 0
   ) {
     console.error(
-      "Payment success: amount webhook tidak valid:",
+      "Payment success: amount tidak valid.",
       data
     );
 
@@ -1207,25 +1269,21 @@ async function processPaymentSuccess(
 
   if (
     paidAmount !==
-    orderAmount
+    expectedAmount
   ) {
     console.error(
       "Payment success: nominal tidak cocok.",
       {
-        orderId:
+        order:
           order.id,
         expected:
-          orderAmount,
+          expectedAmount,
         received:
           paidAmount,
         transactionId,
       }
     );
 
-    /*
-     * Jangan otomatis menganggap lunas
-     * jika nominal berbeda.
-     */
     await updateOrder(
       env,
       order.id,
@@ -1239,10 +1297,8 @@ async function processPaymentSuccess(
   }
 
   /*
-   * Update PENDING -> PAID secara kondisional.
-   *
-   * Ini penting untuk mencegah dua webhook
-   * simultan mengirim produk dua kali.
+   * Kalau payment_id belum tersimpan karena race,
+   * simpan transaction_id sekarang.
    */
   const updated =
     await supabase(
@@ -1254,6 +1310,10 @@ async function processPaymentSuccess(
       {
         status:
           "PAID",
+        payment_id:
+          String(
+            transactionId
+          ),
         paid_at:
           data?.paid_at ||
           data?.data?.paid_at ||
@@ -1265,19 +1325,50 @@ async function processPaymentSuccess(
       }
     );
 
-  const paidOrder =
+  /*
+   * Jika query berdasarkan payment_id tidak
+   * menemukan order karena payment_id sebelumnya
+   * kosong, coba conditional update berdasarkan id.
+   */
+  let paidOrder =
     updated?.[0];
+
+  if (
+    !paidOrder &&
+    !order.payment_id
+  ) {
+    const retry =
+      await supabase(
+        env,
+        `orders?id=eq.${Number(
+          order.id
+        )}&status=eq.PENDING`,
+        "PATCH",
+        {
+          status:
+            "PAID",
+          payment_id:
+            String(
+              transactionId
+            ),
+          paid_at:
+            data?.paid_at ||
+            new Date().toISOString(),
+        },
+        {
+          Prefer:
+            "return=representation",
+        }
+      );
+
+    paidOrder =
+      retry?.[0];
+  }
 
   if (!paidOrder) {
     /*
-     * Kemungkinan webhook duplikat,
-     * atau status sudah berubah.
+     * Webhook duplikat / sudah diproses.
      */
-    console.log(
-      "Payment success: order sudah tidak PENDING:",
-      order.id
-    );
-
     return;
   }
 
@@ -1297,18 +1388,17 @@ async function processPaymentSuccess(
     );
 
     console.log(
-      "Payment success: produk berhasil dikirim:",
+      "Produk berhasil dikirim:",
       paidOrder.id
     );
   } catch (error) {
     console.error(
-      "Payment success: gagal mengirim produk:",
+      "Gagal mengirim produk:",
       error
     );
 
     /*
-     * Pembayaran sudah benar-benar diterima.
-     * Jangan ubah kembali menjadi PENDING.
+     * Jangan kembali ke PENDING.
      */
     await updateOrder(
       env,
@@ -1322,7 +1412,7 @@ async function processPaymentSuccess(
 }
 
 /* =========================================================
- * PAYMENT FAILED / EXPIRED
+ * FAILED / EXPIRED
  * ========================================================= */
 
 async function processPaymentFailed(
@@ -1346,6 +1436,172 @@ async function processPaymentFailed(
       status,
     }
   );
+}
+
+/* =========================================================
+ * FALLBACK STATUS CHECK
+ *
+ * Bisa dipanggil oleh cron / worker lain.
+ * Ini berguna kalau webhook tidak sampai.
+ * ========================================================= */
+
+export async function checkPendingPayments(
+  env
+) {
+  const settings =
+    await getPaymentSettings(env);
+
+  if (
+    !settings.enabled ||
+    !settings.account_id ||
+    !settings.secret_token
+  ) {
+    return;
+  }
+
+  const orders =
+    (await supabase(
+      env,
+      "orders?status=eq.PENDING&payment_id=not.is.null&limit=20"
+    )) || [];
+
+  for (
+    const order of orders
+  ) {
+    try {
+      const status =
+        await checkPaymentStatus(
+          env,
+          settings,
+          order.payment_id
+        );
+
+      if (
+        status ===
+        "success"
+      ) {
+        await processPaymentSuccess(
+          env,
+          String(
+            order.payment_id
+          ),
+          {
+            event:
+              "payment.success",
+            transaction_id:
+              String(
+                order.payment_id
+              ),
+            amount:
+              Number(
+                order.amount
+              ),
+            status:
+              "success",
+            paid_at:
+              new Date().toISOString(),
+          }
+        );
+      } else if (
+        status ===
+        "expired"
+      ) {
+        await updateOrder(
+          env,
+          order.id,
+          {
+            status:
+              "EXPIRED",
+          }
+        );
+      } else if (
+        status ===
+        "failed"
+      ) {
+        await updateOrder(
+          env,
+          order.id,
+          {
+            status:
+              "FAILED",
+          }
+        );
+      }
+    } catch (error) {
+      console.error(
+        "Gagal cek status payment:",
+        order.id,
+        error
+      );
+    }
+  }
+}
+
+async function checkPaymentStatus(
+  env,
+  settings,
+  transactionId
+) {
+  const form =
+    new URLSearchParams();
+
+  form.set(
+    "action",
+    "api_check_status"
+  );
+
+  form.set(
+    "account_id",
+    settings.account_id
+  );
+
+  form.set(
+    "secret_token",
+    settings.secret_token
+  );
+
+  form.set(
+    "transaction_id",
+    String(
+      transactionId
+    )
+  );
+
+  const response =
+    await fetch(
+      BUATQRIS_API,
+      {
+        method:
+          "POST",
+        headers: {
+          "Content-Type":
+            "application/x-www-form-urlencoded",
+          "User-Agent":
+            "Mozilla/5.0",
+        },
+        body:
+          form.toString(),
+      }
+    );
+
+  const json =
+    await response.json();
+
+  if (
+    !response.ok ||
+    json?.success === false
+  ) {
+    throw new Error(
+      json?.message ||
+        "Gagal mengecek status transaksi."
+    );
+  }
+
+  return String(
+    json?.data?.status ||
+    json?.status ||
+    ""
+  ).toLowerCase();
 }
 
 /* =========================================================
@@ -1504,7 +1760,7 @@ async function getPaymentSettings(
       );
   } catch (error) {
     console.error(
-      "Gagal dekripsi kredensial pembayaran:",
+      "Gagal dekripsi payment settings:",
       error
     );
 
@@ -1554,7 +1810,7 @@ function maskValue(
 }
 
 /* =========================================================
- * SIGNATURE
+ * HMAC SHA256
  * ========================================================= */
 
 async function verifySignature(
@@ -1575,7 +1831,9 @@ async function verifySignature(
   if (
     !signature
       .toLowerCase()
-      .startsWith(prefix)
+      .startsWith(
+        prefix
+      )
   ) {
     return false;
   }
