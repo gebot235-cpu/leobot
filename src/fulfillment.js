@@ -119,39 +119,72 @@ async function deliverVipProduct(
         `order-${order.order_code}`
       );
 
-    const inviteLink =
-      invite?.invite_link || null;
-
-    if (inviteLink) {
-      links.push({
-        name:
-          channel.name ||
-          "Channel VIP",
-        url: inviteLink,
-      });
+    if (!invite?.invite_link) {
+      throw new Error(
+        `Gagal membuat invite link untuk channel ${channel.channel_id}.`
+      );
     }
 
-    await supabase(
-      env,
-      "vip_memberships",
-      "POST",
-      {
-        telegram_id:
-          Number(order.telegram_id),
-        channel_id:
-          Number(channel.channel_id),
-        product_id:
-          Number(product.id),
-        order_id:
-          Number(order.id),
-        invite_link:
-          inviteLink,
-        joined_at:
-          null,
-        expires_at:
-          null,
-      }
-    );
+    links.push({
+      name:
+        channel.name ||
+        "Channel VIP",
+      url: invite.invite_link,
+    });
+
+    const existing =
+      await supabase(
+        env,
+        `vip_memberships?order_id=eq.${Number(
+          order.id
+        )}&channel_id=eq.${Number(
+          channel.channel_id
+        )}&limit=1`
+      );
+
+    if (existing?.[0]) {
+      await supabase(
+        env,
+        `vip_memberships?id=eq.${Number(
+          existing[0].id
+        )}`,
+        "PATCH",
+        {
+          telegram_id:
+            Number(order.telegram_id),
+          product_id:
+            Number(product.id),
+          invite_link:
+            invite.invite_link,
+          joined_at:
+            null,
+          expires_at:
+            null,
+        }
+      );
+    } else {
+      await supabase(
+        env,
+        "vip_memberships",
+        "POST",
+        {
+          telegram_id:
+            Number(order.telegram_id),
+          channel_id:
+            Number(channel.channel_id),
+          product_id:
+            Number(product.id),
+          order_id:
+            Number(order.id),
+          invite_link:
+            invite.invite_link,
+          joined_at:
+            null,
+          expires_at:
+            null,
+        }
+      );
+    }
   }
 
   const linksText = links
@@ -161,18 +194,22 @@ async function deliverVipProduct(
     )
     .join("\n");
 
-  const inlineKeyboard = links.map(
-    (link) => [
-      {
-        text: "🚀 MASUK CHANNEL",
-        url: link.url,
-      },
-    ]
-  );
+  const inlineKeyboard =
+    links.map(
+      (link) => [
+        {
+          text:
+            "🚀 MASUK CHANNEL",
+          url:
+            link.url,
+        },
+      ]
+    );
 
   const template =
-    await getVipWaitingTemplate(
-      env
+    await getMessage(
+      env,
+      "message_vip_active"
     );
 
   const text =
@@ -181,14 +218,12 @@ async function deliverVipProduct(
       {
         first_name:
           order.first_name || "",
-        order_code:
-          order.order_code || "",
-        product_name:
-          product.name || "",
+        expires_at:
+          "",
       }
     ) +
     (linksText
-      ? `\n\n🔗 Link akses (sekali pakai, berlaku 5 jam):\n${linksText}`
+      ? `\n\n🔗 Link akses:\n${linksText}`
       : "");
 
   return sendMessage(
@@ -197,48 +232,6 @@ async function deliverVipProduct(
     text,
     inlineKeyboard
   );
-}
-
-async function getVipWaitingTemplate(
-  env
-) {
-  const keys = [
-    "message_vip_waiting",
-    "vip_waiting",
-    "waiting_vip",
-  ];
-
-  for (const key of keys) {
-    const rows =
-      await supabase(
-        env,
-        `settings?key=eq.${encodeURIComponent(
-          key
-        )}&limit=1`
-      );
-
-    const value =
-      rows?.[0]?.value;
-
-    if (
-      value !== undefined &&
-      value !== null &&
-      String(value).trim()
-    ) {
-      return String(value);
-    }
-  }
-
-  return `✅ Pembayaran berhasil!
-
-📦 {product_name}
-🧾 Order #{order_code}
-
-Silakan masuk ke channel VIP menggunakan tombol di bawah.
-
-⚠️ Masa aktif VIP baru dimulai setelah kamu berhasil masuk channel.
-
-🔗 Link akses berlaku 5 jam dan hanya dapat digunakan sekali.`;
 }
 
 async function sendTemplateMessage(
@@ -284,7 +277,9 @@ function replaceTemplateVariables(
     text =
       text.replaceAll(
         `{${key}}`,
-        String(value ?? "")
+        String(
+          value ?? ""
+        )
       );
   }
 
@@ -295,10 +290,20 @@ async function getProduct(
   env,
   productId
 ) {
+  const id =
+    Number(productId);
+
+  if (
+    !Number.isSafeInteger(id) ||
+    id <= 0
+  ) {
+    return null;
+  }
+
   const rows =
     await supabase(
       env,
-      `products?id=eq.${Number(productId)}&limit=1`
+      `products?id=eq.${id}&limit=1`
     );
 
   return rows?.[0] || null;
@@ -311,21 +316,26 @@ async function getProductChannels(
   const rows =
     (await supabase(
       env,
-      `product_channels?product_id=eq.${productId}`
+      `product_channels?product_id=eq.${Number(
+        productId
+      )}`
     )) || [];
 
   if (!rows.length) {
     return [];
   }
 
-  const ids = rows
-    .map(
-      (row) =>
-        Number(row.channel_id)
-    )
-    .filter(
-      Number.isSafeInteger
-    );
+  const ids =
+    rows
+      .map(
+        (row) =>
+          Number(
+            row.channel_id
+          )
+      )
+      .filter(
+        Number.isSafeInteger
+      );
 
   if (!ids.length) {
     return [];
