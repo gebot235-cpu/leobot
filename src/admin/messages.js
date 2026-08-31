@@ -20,18 +20,18 @@ const messageTypes = {
     name: "👋 WELCOME",
     key: "message_welcome",
     default:
-`🦁 LEOBOT
+`🦁 Halo {first_name}!
 
-Selamat datang di toko kami! 👋
+Selamat datang di LeoBot 👋
 
-Silakan pilih produk:`,
+Silakan pilih produk yang tersedia.`,
   },
 
   empty_products: {
     name: "📦 PRODUK KOSONG",
     key: "message_empty_products",
     default:
-`🦁 LEOBOT
+`🦁 LeoBot
 
 Saat ini belum ada produk yang tersedia.`,
   },
