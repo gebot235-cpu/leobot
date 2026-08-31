@@ -724,13 +724,6 @@ if (
           callback.from?.first_name || null
         );
 
-      await sendWaitingPaymentMessage(
-        env,
-        chatId,
-        order,
-        product
-      );
-
       await sendPaymentQr(
         env,
         chatId,
