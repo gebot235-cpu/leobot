@@ -154,6 +154,11 @@ export default {
           env,
           update.message
         );
+      } else if (update.chat_member) {
+        await handleChatMemberUpdate(
+          env,
+          update.chat_member
+        );
       }
     } catch (error) {
       console.error(error);
@@ -162,12 +167,6 @@ export default {
     return new Response("OK");
   },
 
-  /*
-   * Dipicu oleh Cloudflare Cron Triggers (lihat [triggers] di
-   * wrangler.toml). Sebelumnya export ini tidak ada sama sekali,
-   * jadi order yang tidak dibayar tidak pernah expired dan member
-   * VIP tidak pernah otomatis dikeluarkan saat masa aktifnya habis.
-   */
   async scheduled(event, env, ctx) {
     ctx.waitUntil(
       runCronTasks(env).catch((error) => {
@@ -176,6 +175,135 @@ export default {
     );
   },
 };
+
+async function handleChatMemberUpdate(
+  env,
+  update
+) {
+  const chatId =
+    update.chat?.id;
+
+  const userId =
+    update.new_chat_member?.user?.id;
+
+  const newStatus =
+    update.new_chat_member?.status;
+
+  const oldStatus =
+    update.old_chat_member?.status;
+
+  if (
+    !chatId ||
+    !userId
+  ) {
+    return;
+  }
+
+  const joined =
+    newStatus === "member" &&
+    oldStatus !== "member";
+
+  if (!joined) {
+    return;
+  }
+
+  const memberships =
+    await supabase(
+      env,
+      `vip_memberships?telegram_id=eq.${Number(
+        userId
+      )}&channel_id=eq.${Number(
+        chatId
+      )}&joined_at=is.null&expires_at=is.null&limit=1`
+    );
+
+  const membership =
+    memberships?.[0];
+
+  if (!membership) {
+    return;
+  }
+
+  if (!membership.product_id) {
+    console.error(
+      "Membership VIP tidak memiliki product_id:",
+      membership.id
+    );
+
+    return;
+  }
+
+  const product =
+    await getProduct(
+      env,
+      membership.product_id
+    );
+
+  if (!product) {
+    console.error(
+      `Produk #${membership.product_id} tidak ditemukan untuk membership #${membership.id}`
+    );
+
+    return;
+  }
+
+  const durationDays =
+    Number(product.duration_days) || 0;
+
+  if (durationDays <= 0) {
+    console.error(
+      `duration_days tidak valid untuk produk #${product.id}`
+    );
+
+    return;
+  }
+
+  const joinedAt =
+    new Date();
+
+  const expiresAt =
+    new Date(
+      joinedAt.getTime() +
+        durationDays *
+          24 *
+          60 *
+          60 *
+          1000
+    );
+
+  await supabase(
+    env,
+    `vip_memberships?id=eq.${Number(
+      membership.id
+    )}`,
+    "PATCH",
+    {
+      joined_at:
+        joinedAt.toISOString(),
+      expires_at:
+        expiresAt.toISOString(),
+    }
+  );
+
+  console.log(
+    `VIP aktif: user=${userId}, channel=${chatId}, membership=${membership.id}, expires=${expiresAt.toISOString()}`
+  );
+
+  await sendMessage(
+    env,
+    userId,
+    `✅ VIP berhasil diaktifkan!\n\n` +
+      `📅 Masa aktif: ${durationDays} hari\n` +
+      `⏰ Berlaku sampai: ${expiresAt.toLocaleDateString(
+        "id-ID",
+        {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }
+      )}`
+  );
+}
 
 async function handleMessage(
   env,
@@ -1532,5 +1660,3 @@ async function getProduct(
 
   return rows?.[0] || null;
 }
-
-
