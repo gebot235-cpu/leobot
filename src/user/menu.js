@@ -21,7 +21,8 @@ import {
 export async function showMainMenu(
   env,
   chatId,
-  messageId = null
+  messageId = null,
+  firstName = ""
 ) {
   const [products, settings] =
     await Promise.all([
@@ -32,6 +33,10 @@ export async function showMainMenu(
   const text = await getMessage(
   env,
   "message_welcome"
+  )
+).replace(
+  /\{first_name\}/g,
+  firstName
 );
 
   const buttons = [];
