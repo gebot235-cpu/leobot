@@ -1,6 +1,7 @@
 import {
   sendPhoto,
   editMessage,
+  deleteMessage,
 } from "./telegram.js";
 
 import {
@@ -22,24 +23,15 @@ import {
   decryptSecret,
 } from "./crypto.js";
 
-/*
- * BuatQris Open API
- */
+import {
+  getMessage,
+} from "./admin/messages.js";
+
 const BUATQRIS_API =
   "https://app.buatqris.site/api";
 
-/*
- * Worker webhook tetap.
- *
- * Tidak perlu isi Callback URL di dashboard BuatQris
- * karena URL ini dikirim pada setiap api_create_qris.
- */
 const CALLBACK_URL =
   "https://leobot.gebot235.workers.dev/webhook/buatqris";
-
-/* =========================================================
- * ADMIN PAYMENT MENU
- * ========================================================= */
 
 export async function showPaymentMenu(
   env,
@@ -644,10 +636,6 @@ export async function togglePayment(
   );
 }
 
-/* =========================================================
- * CREATE QRIS
- * ========================================================= */
-
 export async function createPayment(
   env,
   telegramId,
@@ -766,15 +754,6 @@ export async function createPayment(
     );
   }
 
-  /*
-   * API BuatQris menggunakan:
-   *
-   * POST https://app.buatqris.site/api
-   *
-   * Content-Type:
-   * application/x-www-form-urlencoded
-   */
-
   const form =
     new URLSearchParams();
 
@@ -815,12 +794,6 @@ export async function createPayment(
       : "0"
   );
 
-  /*
-   * INI BAGIAN PENTING.
-   *
-   * Callback dikirim langsung ke transaksi.
-   * Tidak perlu mengandalkan Callback URL dashboard.
-   */
   form.set(
     "callback_url",
     CALLBACK_URL
@@ -984,6 +957,8 @@ export async function createPayment(
   return {
     ...order,
     amount,
+    product_name:
+      product.name || "",
     payment_id:
       String(
         paymentId
@@ -1008,24 +983,76 @@ export async function sendPaymentQr(
     );
   }
 
-  return sendPhoto(
-    env,
-    chatId,
-    order.qr_url
-  );
-}
+  const text =
+    await getMessage(
+      env,
+      "message_waiting_payment"
+    );
 
-/* =========================================================
- * WEBHOOK BUATQRIS
- * ========================================================= */
+  const caption =
+    String(
+      text || ""
+    )
+      .replaceAll(
+        "{order_code}",
+        order.order_code || ""
+      )
+      .replaceAll(
+        "{product_name}",
+        order.product_name || ""
+      )
+      .replaceAll(
+        "{price}",
+        Number(
+          order.amount || 0
+        ).toLocaleString("id-ID")
+      )
+      .replaceAll(
+        "{minutes}",
+        "15"
+      );
+
+  const sent =
+    await sendPhoto(
+      env,
+      chatId,
+      order.qr_url,
+      caption
+    );
+
+  const sentMessageId =
+    sent?.result?.message_id ||
+    sent?.message_id;
+
+  if (
+    sentMessageId
+  ) {
+    setTimeout(
+      async () => {
+        try {
+          await deleteMessage(
+            env,
+            chatId,
+            sentMessageId
+          );
+        } catch (error) {
+          console.error(
+            "Gagal menghapus QRIS:",
+            error
+          );
+        }
+      },
+      15 * 60 * 1000
+    );
+  }
+
+  return sent;
+}
 
 export async function handleBuatQrisWebhook(
   env,
   request
 ) {
-  /*
-   * RAW BODY harus dipakai untuk HMAC.
-   */
   const body =
     await request.text();
 
@@ -1136,9 +1163,6 @@ export async function handleBuatQrisWebhook(
     event ===
     "payment.success"
   ) {
-    /*
-     * Proses langsung.
-     */
     await processPaymentSuccess(
       env,
       transactionId,
@@ -1165,10 +1189,6 @@ export async function handleBuatQrisWebhook(
   );
 }
 
-/* =========================================================
- * PAYMENT SUCCESS
- * ========================================================= */
-
 async function processPaymentSuccess(
   env,
   transactionId,
@@ -1185,11 +1205,6 @@ async function processPaymentSuccess(
   let order =
     orders?.[0];
 
-  /*
-   * Kalau webhook datang sebelum database selesai
-   * menyimpan payment_id, coba cari berdasarkan
-   * transaction_id/order_code dari payload.
-   */
   if (!order) {
     const orderCode =
       data?.order_code ||
@@ -1223,9 +1238,6 @@ async function processPaymentSuccess(
     return;
   }
 
-  /*
-   * Jangan proses ulang.
-   */
   if (
     order.status ===
       "PAID" ||
@@ -1235,12 +1247,6 @@ async function processPaymentSuccess(
     return;
   }
 
-  /*
-   * Validasi nominal.
-   *
-   * BuatQris payload:
-   * amount = nominal transaksi
-   */
   const paidAmount =
     Number(
       data?.amount ??
@@ -1296,10 +1302,6 @@ async function processPaymentSuccess(
     return;
   }
 
-  /*
-   * Kalau payment_id belum tersimpan karena race,
-   * simpan transaction_id sekarang.
-   */
   const updated =
     await supabase(
       env,
@@ -1325,11 +1327,6 @@ async function processPaymentSuccess(
       }
     );
 
-  /*
-   * Jika query berdasarkan payment_id tidak
-   * menemukan order karena payment_id sebelumnya
-   * kosong, coba conditional update berdasarkan id.
-   */
   let paidOrder =
     updated?.[0];
 
@@ -1366,9 +1363,6 @@ async function processPaymentSuccess(
   }
 
   if (!paidOrder) {
-    /*
-     * Webhook duplikat / sudah diproses.
-     */
     return;
   }
 
@@ -1397,9 +1391,6 @@ async function processPaymentSuccess(
       error
     );
 
-    /*
-     * Jangan kembali ke PENDING.
-     */
     await updateOrder(
       env,
       paidOrder.id,
@@ -1410,10 +1401,6 @@ async function processPaymentSuccess(
     );
   }
 }
-
-/* =========================================================
- * FAILED / EXPIRED
- * ========================================================= */
 
 async function processPaymentFailed(
   env,
@@ -1437,13 +1424,6 @@ async function processPaymentFailed(
     }
   );
 }
-
-/* =========================================================
- * FALLBACK STATUS CHECK
- *
- * Bisa dipanggil oleh cron / worker lain.
- * Ini berguna kalau webhook tidak sampai.
- * ========================================================= */
 
 export async function checkPendingPayments(
   env
@@ -1604,10 +1584,6 @@ async function checkPaymentStatus(
   ).toLowerCase();
 }
 
-/* =========================================================
- * ORDER
- * ========================================================= */
-
 async function updateOrder(
   env,
   orderId,
@@ -1622,10 +1598,6 @@ async function updateOrder(
     data
   );
 }
-
-/* =========================================================
- * SETTINGS
- * ========================================================= */
 
 async function getPaymentSettings(
   env
@@ -1808,10 +1780,6 @@ function maskValue(
     text.slice(-3)
   );
 }
-
-/* =========================================================
- * HMAC SHA256
- * ========================================================= */
 
 async function verifySignature(
   body,
