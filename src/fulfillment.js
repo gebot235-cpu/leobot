@@ -28,21 +28,19 @@ export async function deliverProduct(
     );
   }
 
-  if (product.type === "DIGITAL") {
-    await sendTemplateMessage(
-      env,
-      order.telegram_id,
-      "message_payment_success",
-      {
-        first_name:
-          order.first_name || "",
-        product_name:
-          product.name || "",
-        order_code:
-          order.order_code || "",
-      }
-    );
+  await sendTemplateMessage(
+    env,
+    order.telegram_id,
+    "message_payment_success",
+    {
+      first_name:
+        order.first_name || "",
+      order_code:
+        order.order_code || "",
+    }
+  );
 
+  if (product.type === "DIGITAL") {
     return deliverDigitalProduct(
       env,
       order,
@@ -94,24 +92,7 @@ async function deliverDigitalProduct(
   );
 }
 
-async function deliverVipProduct(
-  env,
-  order,
-  product
-) {
-  const channels =
-    await getProductChannels(
-      env,
-      product.id
-    );
-
-  if (!channels.length) {
-    throw new Error(
-      `Produk VIP "${product.name}" belum punya channel terhubung.`
-    );
-  }
-
-  const links = [];
+const links = [];
 
   for (const channel of channels) {
     const invite =
@@ -131,8 +112,7 @@ async function deliverVipProduct(
       name:
         channel.name ||
         "Channel VIP",
-      url:
-        invite.invite_link,
+      url: invite.invite_link,
     });
 
     const existing =
@@ -190,13 +170,12 @@ async function deliverVipProduct(
     }
   }
 
-  const linksText =
-    links
-      .map(
-        (link) =>
-          `• ${link.name}: ${link.url}`
-      )
-      .join("\n");
+  const linksText = links
+    .map(
+      (link) =>
+        `• ${link.name}: ${link.url}`
+    )
+    .join("\n");
 
   const inlineKeyboard =
     links.map(
@@ -228,7 +207,9 @@ async function deliverVipProduct(
           order.order_code || "",
       }
     ) +
-    `\n\n🔗 Link akses:\n${linksText}`;
+    (linksText
+      ? `\n\n🔗 Link akses:\n${linksText}`
+      : "");
 
   return sendMessage(
     env,
