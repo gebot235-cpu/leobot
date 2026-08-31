@@ -18,11 +18,6 @@ import {
   getMessage,
 } from "../admin/messages.js";
 
-
-/* =========================================================
- * USER MAIN MENU
- * ========================================================= */
-
 export async function showMainMenu(
   env,
   chatId,
@@ -34,10 +29,10 @@ export async function showMainMenu(
       getShopSettings(env),
     ]);
 
-  const text =
-`🦁 LEOBOT
-
-Selamat datang di toko kami! 👋`;
+  const text = await getMessage(
+  env,
+  "message_welcome"
+);
 
   const buttons = [];
 
@@ -139,11 +134,6 @@ Saat ini belum ada produk yang tersedia.`;
   );
 }
 
-
-/* =========================================================
- * PRODUCT CATEGORY
- * ========================================================= */
-
 export async function showProductCategory(
   env,
   chatId,
@@ -239,11 +229,6 @@ Silakan pilih produk:`,
   );
 }
 
-
-/* =========================================================
- * CS CONTACT
- * ========================================================= */
-
 export async function showCsContact(
   env,
   chatId,
@@ -274,11 +259,6 @@ ${
     ]
   );
 }
-
-
-/* =========================================================
- * PRODUCT DETAIL
- * ========================================================= */
 
 export async function showProduct(
   env,
