@@ -372,7 +372,7 @@ Kirim angka saja.`,
 
     const number = Number(value);
 
-    if (!Number.isSafeInteger(number) || number <= 0) {
+    if (!Number.isSafeInteger(number) || number < 0) {
       return true;
     }
 
@@ -623,7 +623,7 @@ Contoh:
 
     const price = Number(value);
 
-    if (!Number.isSafeInteger(price) || price <= 0) {
+    if (!Number.isSafeInteger(price) || price < 0) {
       return true;
     }
 
@@ -1184,13 +1184,14 @@ export async function saveNewProduct(
   }
 
   if (
-    state.product_type === "VIP" &&
-    (
-      !state.duration_days ||
-      !state.selected_channels?.length
-    )
-  ) {
-    return;
+  state.product_type === "VIP" &&
+  (
+    state.duration_days === undefined ||
+    state.duration_days === null ||
+    !state.selected_channels?.length
+  )
+) {
+  return;
   }
 
   if (
