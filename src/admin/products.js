@@ -586,7 +586,7 @@ Langkah 3
 Kirim harga produk.
 
 Contoh:
-50000`,
+1000`,
       [
         [
           {
@@ -609,7 +609,7 @@ Contoh:
 Kirim harga dalam angka.
 
 Contoh:
-50000`,
+1000`,
         [
           [
             {
@@ -760,59 +760,101 @@ Kirim media atau file yang didukung Telegram:
   }
 
   if (state.step === "DURATION") {
-    if (!value || !/^\d+$/.test(value)) {
-      return editMessage(
-        env,
-        message.chat.id,
-        state.message_id,
+  if (!value) {
+    return editMessage(
+      env,
+      message.chat.id,
+      state.message_id,
+`➕ TAMBAH VIP
+
+Langkah 4
+
+Kirim masa aktif dalam hari.
+
+Contoh:
+30
+
+Atau pilih tanpa batas waktu:`,
+      [
+        [
+          {
+            text: "♾️ TANPA BATAS WAKTU",
+            callback_data:
+              "admin:product:add:unlimited",
+          },
+        ],
+        [
+          {
+            text: "❌ BATAL",
+            callback_data:
+              "admin:product:cancel",
+          },
+        ],
+      ]
+    );
+  }
+
+  if (!/^\d+$/.test(value)) {
+    return editMessage(
+      env,
+      message.chat.id,
+      state.message_id,
 `❌ Durasi tidak valid.
 
 Kirim jumlah hari.
 
 Contoh:
 30`,
+      [
         [
-          [
-            {
-              text: "❌ BATAL",
-              callback_data: "admin:product:cancel",
-            },
-          ],
-        ]
-      );
-    }
-
-    const duration = Number(value);
-
-    if (!Number.isSafeInteger(duration) || duration <= 0) {
-      return true;
-    }
-
-    const nextState = {
-      ...state,
-      step: "CHANNELS",
-      duration_days: duration,
-      selected_channels:
-        state.selected_channels || [],
-    };
-
-    await updateState(
-      env,
-      message.chat.id,
-      nextState
+          {
+            text: "♾️ TANPA BATAS WAKTU",
+            callback_data:
+              "admin:product:add:unlimited",
+          },
+        ],
+        [
+          {
+            text: "❌ BATAL",
+            callback_data:
+              "admin:product:cancel",
+          },
+        ],
+      ]
     );
+  }
 
-    await deleteInput(
-      env,
-      message
-    );
+  const duration = Number(value);
 
-    return showChannelSelector(
-      env,
-      message.chat.id,
-      state.message_id,
-      nextState
-    );
+  if (!Number.isSafeInteger(duration) || duration <= 0) {
+    return true;
+  }
+
+  const nextState = {
+    ...state,
+    step: "CHANNELS",
+    duration_days: duration,
+    selected_channels:
+      state.selected_channels || [],
+  };
+
+  await updateState(
+    env,
+    message.chat.id,
+    nextState
+  );
+
+  await deleteInput(
+    env,
+    message
+  );
+
+  return showChannelSelector(
+    env,
+    message.chat.id,
+    state.message_id,
+    nextState
+  );
   }
 
   return true;
