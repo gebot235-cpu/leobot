@@ -372,7 +372,7 @@ Kirim angka saja.`,
 
     const number = Number(value);
 
-    if (!Number.isSafeInteger(number) || number < 0) {
+    if (!Number.isSafeInteger(number) || number <= 0) {
       return true;
     }
 
@@ -586,7 +586,7 @@ Langkah 3
 Kirim harga produk.
 
 Contoh:
-1000`,
+50000`,
       [
         [
           {
@@ -609,7 +609,7 @@ Contoh:
 Kirim harga dalam angka.
 
 Contoh:
-1000`,
+50000`,
         [
           [
             {
@@ -623,7 +623,7 @@ Contoh:
 
     const price = Number(value);
 
-    if (!Number.isSafeInteger(price) || price < 0) {
+    if (!Number.isSafeInteger(price) || price <= 0) {
       return true;
     }
 
@@ -760,101 +760,59 @@ Kirim media atau file yang didukung Telegram:
   }
 
   if (state.step === "DURATION") {
-  if (!value) {
-    return editMessage(
-      env,
-      message.chat.id,
-      state.message_id,
-`➕ TAMBAH VIP
-
-Langkah 4
-
-Kirim masa aktif dalam hari.
-
-Contoh:
-30
-
-Atau pilih tanpa batas waktu:`,
-      [
-        [
-          {
-            text: "♾️ TANPA BATAS WAKTU",
-            callback_data:
-              "admin:product:add:unlimited",
-          },
-        ],
-        [
-          {
-            text: "❌ BATAL",
-            callback_data:
-              "admin:product:cancel",
-          },
-        ],
-      ]
-    );
-  }
-
-  if (!/^\d+$/.test(value)) {
-    return editMessage(
-      env,
-      message.chat.id,
-      state.message_id,
+    if (!value || !/^\d+$/.test(value)) {
+      return editMessage(
+        env,
+        message.chat.id,
+        state.message_id,
 `❌ Durasi tidak valid.
 
 Kirim jumlah hari.
 
 Contoh:
 30`,
-      [
         [
-          {
-            text: "♾️ TANPA BATAS WAKTU",
-            callback_data:
-              "admin:product:add:unlimited",
-          },
-        ],
-        [
-          {
-            text: "❌ BATAL",
-            callback_data:
-              "admin:product:cancel",
-          },
-        ],
-      ]
+          [
+            {
+              text: "❌ BATAL",
+              callback_data: "admin:product:cancel",
+            },
+          ],
+        ]
+      );
+    }
+
+    const duration = Number(value);
+
+    if (!Number.isSafeInteger(duration) || duration <= 0) {
+      return true;
+    }
+
+    const nextState = {
+      ...state,
+      step: "CHANNELS",
+      duration_days: duration,
+      selected_channels:
+        state.selected_channels || [],
+    };
+
+    await updateState(
+      env,
+      message.chat.id,
+      nextState
     );
-  }
 
-  const duration = Number(value);
+    await deleteInput(
+      env,
+      message
+    );
 
-  if (!Number.isSafeInteger(duration) || duration <= 0) {
-    return true;
-  }
-
-  const nextState = {
-    ...state,
-    step: "CHANNELS",
-    duration_days: duration,
-    selected_channels:
-      state.selected_channels || [],
-  };
-
-  await updateState(
-    env,
-    message.chat.id,
-    nextState
-  );
-
-  await deleteInput(
-    env,
-    message
-  );
-
-  return showChannelSelector(
-    env,
-    message.chat.id,
-    state.message_id,
-    nextState
-  );
+    return showChannelSelector(
+      env,
+      message.chat.id,
+      state.message_id,
+      nextState
+    );
   }
 
   return true;
@@ -1184,14 +1142,13 @@ export async function saveNewProduct(
   }
 
   if (
-  state.product_type === "VIP" &&
-  (
-    state.duration_days === undefined ||
-    state.duration_days === null ||
-    !state.selected_channels?.length
-  )
-) {
-  return;
+    state.product_type === "VIP" &&
+    (
+      !state.duration_days ||
+      !state.selected_channels?.length
+    )
+  ) {
+    return;
   }
 
   if (
