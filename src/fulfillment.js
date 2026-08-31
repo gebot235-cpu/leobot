@@ -12,20 +12,6 @@ import {
   getMessage,
 } from "./admin/messages.js";
 
-/**
- * INI ADALAH FITUR YANG SEBELUMNYA HILANG TOTAL.
- *
- * Sebelum modul ini ada, `processPaymentSuccess` di payment.js
- * cuma mengubah status order menjadi PAID lalu berhenti — tidak
- * ada file digital yang dikirim, tidak ada invite link VIP yang
- * dibuat, dan template pesan "PEMBAYARAN BERHASIL" / "DIGITAL
- * TERKIRIM" / "VIP AKTIF" yang bisa diedit admin tidak pernah
- * benar-benar dipakai. Customer bayar tapi tidak menerima apa pun
- * secara otomatis.
- *
- * deliverProduct() dipanggil oleh payment.js tepat setelah webhook
- * BuatQris mengonfirmasi pembayaran sukses.
- */
 export async function deliverProduct(
   env,
   order
@@ -133,24 +119,18 @@ async function deliverVipProduct(
         `order-${order.order_code}`
       );
 
-    if (invite?.invite_link) {
+    const inviteLink =
+      invite?.invite_link || null;
+
+    if (inviteLink) {
       links.push({
         name:
           channel.name ||
           "Channel VIP",
-        url: invite.invite_link,
+        url: inviteLink,
       });
     }
 
-    /*
-     * Membership VIP dibuat dalam keadaan BELUM AKTIF.
-     *
-     * Masa aktif baru dimulai ketika user benar-benar
-     * berhasil join channel.
-     *
-     * joined_at  = NULL
-     * expires_at = NULL
-     */
     await supabase(
       env,
       "vip_memberships",
@@ -164,6 +144,8 @@ async function deliverVipProduct(
           Number(product.id),
         order_id:
           Number(order.id),
+        invite_link:
+          inviteLink,
         joined_at:
           null,
         expires_at:
@@ -179,10 +161,6 @@ async function deliverVipProduct(
     )
     .join("\n");
 
-  /*
-   * Tombol MASUK CHANNEL menggunakan invite link
-   * yang sama dengan link yang ditampilkan sebagai teks.
-   */
   const inlineKeyboard = links.map(
     (link) => [
       {
@@ -193,25 +171,20 @@ async function deliverVipProduct(
   );
 
   const template =
-    await getMessage(
-      env,
-      "message_vip_active"
+    await getVipWaitingTemplate(
+      env
     );
 
-  /*
-   * VIP belum benar-benar aktif sebelum user join.
-   *
-   * expires_at dikosongkan sementara karena akan diisi
-   * oleh handler `chat_member` ketika user berhasil join.
-   */
   const text =
     replaceTemplateVariables(
       template,
       {
         first_name:
           order.first_name || "",
-        expires_at:
-          "",
+        order_code:
+          order.order_code || "",
+        product_name:
+          product.name || "",
       }
     ) +
     (linksText
@@ -224,6 +197,48 @@ async function deliverVipProduct(
     text,
     inlineKeyboard
   );
+}
+
+async function getVipWaitingTemplate(
+  env
+) {
+  const keys = [
+    "message_vip_waiting",
+    "vip_waiting",
+    "waiting_vip",
+  ];
+
+  for (const key of keys) {
+    const rows =
+      await supabase(
+        env,
+        `settings?key=eq.${encodeURIComponent(
+          key
+        )}&limit=1`
+      );
+
+    const value =
+      rows?.[0]?.value;
+
+    if (
+      value !== undefined &&
+      value !== null &&
+      String(value).trim()
+    ) {
+      return String(value);
+    }
+  }
+
+  return `✅ Pembayaran berhasil!
+
+📦 {product_name}
+🧾 Order #{order_code}
+
+Silakan masuk ke channel VIP menggunakan tombol di bawah.
+
+⚠️ Masa aktif VIP baru dimulai setelah kamu berhasil masuk channel.
+
+🔗 Link akses berlaku 5 jam dan hanya dapat digunakan sekali.`;
 }
 
 async function sendTemplateMessage(
@@ -255,15 +270,22 @@ function replaceTemplateVariables(
   template,
   values
 ) {
-  let text = String(template || "");
+  let text =
+    String(template || "");
 
-  for (const [key, value] of Object.entries(
-    values || {}
-  )) {
-    text = text.replaceAll(
-      `{${key}}`,
-      String(value ?? "")
-    );
+  for (
+    const [
+      key,
+      value,
+    ] of Object.entries(
+      values || {}
+    )
+  ) {
+    text =
+      text.replaceAll(
+        `{${key}}`,
+        String(value ?? "")
+      );
   }
 
   return text;
@@ -289,7 +311,7 @@ async function getProductChannels(
   const rows =
     (await supabase(
       env,
-      `product_channels?product_id=eq.${Number(productId)}`
+      `product_channels?product_id=eq.${productId}`
     )) || [];
 
   if (!rows.length) {
@@ -297,8 +319,13 @@ async function getProductChannels(
   }
 
   const ids = rows
-    .map((row) => Number(row.channel_id))
-    .filter(Number.isSafeInteger);
+    .map(
+      (row) =>
+        Number(row.channel_id)
+    )
+    .filter(
+      Number.isSafeInteger
+    );
 
   if (!ids.length) {
     return [];
@@ -307,7 +334,9 @@ async function getProductChannels(
   return (
     (await supabase(
       env,
-      `vip_channels?id=in.(${ids.join(",")})&is_active=eq.true`
+      `vip_channels?id=in.(${ids.join(
+        ","
+      )})&is_active=eq.true`
     )) || []
   );
 }
