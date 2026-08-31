@@ -603,7 +603,7 @@ async function handleCallback(
   await showMainMenu(
     env,
     chatId,
-    messageId
+    messageId,
     callback.from?.first_name || ""
 );
 
