@@ -28,20 +28,7 @@ export async function deliverProduct(
     );
   }
 
-  const claimed =
-    await claimDelivery(
-      env,
-      order
-    );
-
-  if (!claimed) {
-    return {
-      skipped: true,
-      reason: "already_delivered",
-    };
-  }
-
-  try {
+  if (product.type === "DIGITAL") {
     await sendTemplateMessage(
       env,
       order.telegram_id,
@@ -56,33 +43,24 @@ export async function deliverProduct(
       }
     );
 
-    if (product.type === "DIGITAL") {
-      return deliverDigitalProduct(
-        env,
-        order,
-        product
-      );
-    }
-
-    if (product.type === "VIP") {
-      return deliverVipProduct(
-        env,
-        order,
-        product
-      );
-    }
-
-    throw new Error(
-      `Jenis produk "${product.type}" belum didukung untuk pengiriman otomatis.`
-    );
-  } catch (error) {
-    await releaseDeliveryClaim(
+    return deliverDigitalProduct(
       env,
-      order
+      order,
+      product
     );
-
-    throw error;
   }
+
+  if (product.type === "VIP") {
+    return deliverVipProduct(
+      env,
+      order,
+      product
+    );
+  }
+
+  throw new Error(
+    `Jenis produk "${product.type}" belum didukung untuk pengiriman otomatis.`
+  );
 }
 
 async function deliverDigitalProduct(
@@ -232,11 +210,30 @@ async function deliverVipProduct(
       ]
     );
 
+  const template =
+    await getMessage(
+      env,
+      "message_payment_success"
+    );
+
+  const text =
+    replaceTemplateVariables(
+      template,
+      {
+        first_name:
+          order.first_name || "",
+        product_name:
+          product.name || "",
+        order_code:
+          order.order_code || "",
+      }
+    ) +
+    `\n\n🔗 Link akses:\n${linksText}`;
+
   return sendMessage(
     env,
     order.telegram_id,
-    `🔐 Silakan JOIN channel VIP melalui link/tombol di bawah.\n\n` +
-      `🔗 Link akses:\n${linksText}`,
+    text,
     inlineKeyboard
   );
 }
@@ -291,93 +288,6 @@ function replaceTemplateVariables(
   }
 
   return text;
-}
-
-async function claimDelivery(
-  env,
-  order
-) {
-  const orderId =
-    Number(order?.id);
-
-  if (
-    !Number.isSafeInteger(orderId) ||
-    orderId <= 0
-  ) {
-    return false;
-  }
-
-  const rows =
-    await supabase(
-      env,
-      `orders?id=eq.${orderId}&select=id,delivery_status&limit=1`
-    );
-
-  const current =
-    rows?.[0];
-
-  if (!current) {
-    return false;
-  }
-
-  if (
-    current.delivery_status ===
-    "delivered"
-  ) {
-    return false;
-  }
-
-  if (
-    current.delivery_status ===
-    "processing"
-  ) {
-    return false;
-  }
-
-  const result =
-    await supabase(
-      env,
-      `orders?id=eq.${orderId}&delivery_status=neq.processing&delivery_status=neq.delivered`,
-      "PATCH",
-      {
-        delivery_status:
-          "processing",
-      }
-    );
-
-  if (
-    Array.isArray(result) &&
-    result.length === 0
-  ) {
-    return false;
-  }
-
-  return true;
-}
-
-async function releaseDeliveryClaim(
-  env,
-  order
-) {
-  const orderId =
-    Number(order?.id);
-
-  if (
-    !Number.isSafeInteger(orderId) ||
-    orderId <= 0
-  ) {
-    return;
-  }
-
-  await supabase(
-    env,
-    `orders?id=eq.${orderId}&delivery_status=eq.processing`,
-    "PATCH",
-    {
-      delivery_status:
-        null,
-    }
-  );
 }
 
 async function getProduct(
