@@ -12,6 +12,7 @@ import {
   getMessage,
 } from "./admin/messages.js";
 
+
 export async function deliverProduct(
   env,
   order
@@ -28,19 +29,19 @@ export async function deliverProduct(
     );
   }
 
-  await sendTemplateMessage(
-    env,
-    order.telegram_id,
-    "message_payment_success",
-    {
-      first_name:
-        order.first_name || "",
-      order_code:
-        order.order_code || "",
-    }
-  );
-
   if (product.type === "DIGITAL") {
+    await sendTemplateMessage(
+      env,
+      order.telegram_id,
+      "message_payment_success",
+      {
+        first_name:
+          order.first_name || "",
+        order_code:
+          order.order_code || "",
+      }
+    );
+
     return deliverDigitalProduct(
       env,
       order,
@@ -60,6 +61,7 @@ export async function deliverProduct(
     `Jenis produk "${product.type}" belum didukung untuk pengiriman otomatis.`
   );
 }
+
 
 async function deliverDigitalProduct(
   env,
@@ -92,7 +94,25 @@ async function deliverDigitalProduct(
   );
 }
 
-const links = [];
+
+async function deliverVipProduct(
+  env,
+  order,
+  product
+) {
+  const channels =
+    await getProductChannels(
+      env,
+      product.id
+    );
+
+  if (!channels.length) {
+    throw new Error(
+      `Produk VIP "${product.name}" belum memiliki channel aktif.`
+    );
+  }
+
+  const links = [];
 
   for (const channel of channels) {
     const invite =
@@ -112,7 +132,8 @@ const links = [];
       name:
         channel.name ||
         "Channel VIP",
-      url: invite.invite_link,
+      url:
+        invite.invite_link,
     });
 
     const existing =
@@ -170,12 +191,13 @@ const links = [];
     }
   }
 
-  const linksText = links
-    .map(
-      (link) =>
-        `• ${link.name}: ${link.url}`
-    )
-    .join("\n");
+  const linksText =
+    links
+      .map(
+        (link) =>
+          `• ${link.name}: ${link.url}`
+      )
+      .join("\n");
 
   const inlineKeyboard =
     links.map(
@@ -204,13 +226,14 @@ const links = [];
         product_name:
           product.name || "",
         order_code:
-          order.order_code || 
-             "",
+          order.order_code || "",
       }
     ) +
-    (linksText
-      ? `\n\n🔗 Link akses:\n${linksText}`
-      : "");
+    (
+      linksText
+        ? `\n\n🔗 Link akses:\n${linksText}`
+        : ""
+    );
 
   return sendMessage(
     env,
@@ -219,6 +242,7 @@ const links = [];
     inlineKeyboard
   );
 }
+
 
 async function sendTemplateMessage(
   env,
@@ -244,6 +268,7 @@ async function sendTemplateMessage(
     text
   );
 }
+
 
 function replaceTemplateVariables(
   template,
@@ -272,6 +297,7 @@ function replaceTemplateVariables(
   return text;
 }
 
+
 async function getProduct(
   env,
   productId
@@ -295,17 +321,20 @@ async function getProduct(
   return rows?.[0] || null;
 }
 
+
 async function getProductChannels(
   env,
   productId
 ) {
   const rows =
-    (await supabase(
-      env,
-      `product_channels?product_id=eq.${Number(
-        productId
-      )}`
-    )) || [];
+    (
+      await supabase(
+        env,
+        `product_channels?product_id=eq.${Number(
+          productId
+        )}`
+      )
+    ) || [];
 
   if (!rows.length) {
     return [];
@@ -328,11 +357,13 @@ async function getProductChannels(
   }
 
   return (
-    (await supabase(
-      env,
-      `vip_channels?id=in.(${ids.join(
-        ","
-      )})&is_active=eq.true`
-    )) || []
+    (
+      await supabase(
+        env,
+        `vip_channels?id=in.(${ids.join(
+          ","
+        )})&is_active=eq.true`
+      )
+    ) || []
   );
 }
