@@ -81,6 +81,7 @@ import {
 
 import {
   showMainMenu,
+  showProductCategory,
   showProduct,
   showCsContact,
 } from "./user/menu.js";
@@ -594,17 +595,47 @@ async function handleCallback(
   }
 
   if (
-    data ===
-    "user:menu"
-  ) {
-    await showMainMenu(
-      env,
-      chatId,
-      messageId
-    );
+  data ===
+  "user:menu"
+) {
+  await showMainMenu(
+    env,
+    chatId,
+    messageId
+  );
 
-    return;
-  }
+  return;
+}
+
+
+/* KATEGORI PRODUK */
+if (
+  data ===
+  "user:category:vip"
+) {
+  await showProductCategory(
+    env,
+    chatId,
+    messageId,
+    "vip"
+  );
+
+  return;
+}
+
+if (
+  data ===
+  "user:category:digital"
+) {
+  await showProductCategory(
+    env,
+    chatId,
+    messageId,
+    "digital"
+  );
+
+  return;
+}
 
   if (
     data ===
