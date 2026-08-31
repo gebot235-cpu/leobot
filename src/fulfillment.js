@@ -33,10 +33,12 @@ export async function deliverProduct(
     await sendTemplateMessage(
       env,
       order.telegram_id,
-      "message_payment_success",
+      "message_payment_success_digital",
       {
         first_name:
           order.first_name || "",
+        product_name:
+          product.name || "",
         order_code:
           order.order_code || "",
       }
