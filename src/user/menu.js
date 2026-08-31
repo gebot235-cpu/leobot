@@ -30,20 +30,18 @@ export async function showMainMenu(
       getShopSettings(env),
     ]);
 
-  const text = await getMessage(
-  env,
-  "message_welcome"
-  )
-).replace(
-  /\{first_name\}/g,
-  firstName
-);
+  let text = await getMessage(
+    env,
+    "message_welcome"
+  );
+
+  text = String(text || "").replace(
+    /\{first_name\}/g,
+    firstName
+  );
 
   const buttons = [];
-
-  /*
-   * VIP ditampilkan terlebih dahulu.
-   */
+  
   if (
     products.some(
       (product) =>
