@@ -209,7 +209,7 @@ async function deliverVipProduct(
   const template =
     await getMessage(
       env,
-      "message_vip_active"
+      "message_payment_success"
     );
 
   const text =
