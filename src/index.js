@@ -430,7 +430,9 @@ async function handleMessage(
     if (text === "/start") {
       await showMainMenu(
         env,
-        chatId
+        chatId,
+        null,
+        message.from?.first_name || ""
       );
     }
 
@@ -602,7 +604,8 @@ async function handleCallback(
     env,
     chatId,
     messageId
-  );
+    callback.from?.first_name || ""
+);
 
   return;
 }
