@@ -148,8 +148,10 @@ export async function sendMediaByType(
 
 /**
  * Buat invite link sekali-pakai untuk sebuah channel/group.
- * member_limit: 1 memastikan link tidak bisa dipakai ulang
- * oleh orang lain setelah dipakai sekali.
+ *
+ * member_limit: 1
+ * expire_date: link otomatis kadaluarsa 5 jam
+ * setelah link dibuat.
  */
 export async function createSingleUseInviteLink(
   env,
@@ -160,6 +162,11 @@ export async function createSingleUseInviteLink(
     chat_id: channelId,
     member_limit: 1,
     creates_join_request: false,
+
+    // Invite link berlaku selama 5 jam.
+    // Telegram menerima expire_date dalam Unix timestamp (detik).
+    expire_date:
+      Math.floor(Date.now() / 1000) + 5 * 60 * 60,
   };
 
   if (name) {
