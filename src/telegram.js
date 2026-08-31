@@ -221,23 +221,39 @@ export async function editMessage(
     chat_id: chatId,
     message_id: messageId,
     text,
+    reply_markup: {
+      inline_keyboard: inlineKeyboard || [],
+    },
   };
 
-  if (inlineKeyboard) {
-    data.reply_markup = {
-      inline_keyboard: inlineKeyboard,
-    };
-  } else {
-    data.reply_markup = {
-      inline_keyboard: [],
-    };
-  }
+  try {
+    return await telegramApi(
+      env,
+      "editMessageText",
+      data
+    );
+  } catch (error) {
+    if (
+      error?.message?.includes(
+        "there is no text in the message to edit"
+      )
+    ) {
+      await deleteMessage(
+        env,
+        chatId,
+        messageId
+      );
 
-  return telegramApi(
-    env,
-    "editMessageText",
-    data
-  );
+      return sendMessage(
+        env,
+        chatId,
+        text,
+        inlineKeyboard
+      );
+    }
+
+    throw error;
+  }
 }
 
 export async function deleteMessage(
