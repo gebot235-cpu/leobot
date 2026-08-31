@@ -123,15 +123,6 @@ async function deliverVipProduct(
     );
   }
 
-  const durationDays =
-    Number(product.duration_days) || 0;
-
-  const expiresAt =
-    new Date(
-      Date.now() +
-        durationDays * 24 * 60 * 60 * 1000
-    );
-
   const links = [];
 
   for (const channel of channels) {
@@ -152,9 +143,13 @@ async function deliverVipProduct(
     }
 
     /*
-     * Catat keanggotaan VIP supaya cron bisa mengirim reminder
-     * sebelum expired dan auto-kick tepat waktu saat expired.
-     * Perlu tabel `vip_memberships` — lihat migrations/README.
+     * Membership VIP dibuat dalam keadaan BELUM AKTIF.
+     *
+     * Masa aktif baru dimulai ketika user benar-benar
+     * berhasil join channel.
+     *
+     * joined_at  = NULL
+     * expires_at = NULL
      */
     await supabase(
       env,
@@ -169,8 +164,10 @@ async function deliverVipProduct(
           Number(product.id),
         order_id:
           Number(order.id),
+        joined_at:
+          null,
         expires_at:
-          expiresAt.toISOString(),
+          null,
       }
     );
   }
@@ -182,12 +179,31 @@ async function deliverVipProduct(
     )
     .join("\n");
 
+  /*
+   * Tombol MASUK CHANNEL menggunakan invite link
+   * yang sama dengan link yang ditampilkan sebagai teks.
+   */
+  const inlineKeyboard = links.map(
+    (link) => [
+      {
+        text: "🚀 MASUK CHANNEL",
+        url: link.url,
+      },
+    ]
+  );
+
   const template =
     await getMessage(
       env,
       "message_vip_active"
     );
 
+  /*
+   * VIP belum benar-benar aktif sebelum user join.
+   *
+   * expires_at dikosongkan sementara karena akan diisi
+   * oleh handler `chat_member` ketika user berhasil join.
+   */
   const text =
     replaceTemplateVariables(
       template,
@@ -195,24 +211,18 @@ async function deliverVipProduct(
         first_name:
           order.first_name || "",
         expires_at:
-          expiresAt.toLocaleDateString(
-            "id-ID",
-            {
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            }
-          ),
+          "",
       }
     ) +
     (linksText
-      ? `\n\n🔗 Link akses (sekali pakai):\n${linksText}`
+      ? `\n\n🔗 Link akses (sekali pakai, berlaku 5 jam):\n${linksText}`
       : "");
 
   return sendMessage(
     env,
     order.telegram_id,
-    text
+    text,
+    inlineKeyboard
   );
 }
 
