@@ -18,6 +18,53 @@ import {
   getMessage,
 } from "../admin/messages.js";
 
+import {
+  supabase,
+} from "../supabase.js";
+
+async function hasActiveVipChannel(
+  env,
+  productId
+) {
+  const productChannels =
+    await supabase(
+      env,
+      `product_channels?product_id=eq.${Number(
+        productId
+      )}`
+    );
+
+  if (!productChannels?.length) {
+    return false;
+  }
+
+  const channelIds =
+    productChannels
+      .map(
+        (row) =>
+          Number(row.channel_id)
+      )
+      .filter(
+        Number.isSafeInteger
+      );
+
+  if (!channelIds.length) {
+    return false;
+  }
+
+  const channels =
+    await supabase(
+      env,
+      `vip_channels?id=in.(${channelIds.join(
+        ","
+      )})&is_active=eq.true`
+    );
+
+  return Boolean(
+    channels?.length
+  );
+}
+
 export async function showMainMenu(
   env,
   chatId,
@@ -41,13 +88,30 @@ export async function showMainMenu(
   );
 
   const buttons = [];
-  
-  if (
-    products.some(
+
+  const vipProducts =
+    products.filter(
       (product) =>
         product.type === "VIP"
-    )
+    );
+
+  let hasVip = false;
+
+  for (
+    const product of vipProducts
   ) {
+    if (
+      await hasActiveVipChannel(
+        env,
+        product.id
+      )
+    ) {
+      hasVip = true;
+      break;
+    }
+  }
+
+  if (hasVip) {
     buttons.push([
       {
         text:
@@ -58,9 +122,6 @@ export async function showMainMenu(
     ]);
   }
 
-  /*
-   * DIGITAL ditampilkan setelah VIP.
-   */
   if (
     products.some(
       (product) =>
@@ -77,9 +138,6 @@ export async function showMainMenu(
     ]);
   }
 
-  /*
-   * Jika tidak ada produk aktif.
-   */
   if (buttons.length === 0) {
     const emptyText =
 `${text}
@@ -102,10 +160,6 @@ Saat ini belum ada produk yang tersedia.`;
     );
   }
 
-  /*
-   * Saat kembali ke menu menggunakan
-   * message yang sudah ada.
-   */
   if (messageId) {
     return editMessage(
       env,
@@ -116,9 +170,6 @@ Saat ini belum ada produk yang tersedia.`;
     );
   }
 
-  /*
-   * Saat /start dan welcome photo tersedia.
-   */
   if (settings.welcome_photo) {
     return sendPhoto(
       env,
@@ -159,12 +210,34 @@ export async function showProductCategory(
       ? "🔐 PRODUK VIP"
       : "📦 PRODUK DIGITAL";
 
-  const filteredProducts =
+  let filteredProducts =
     products.filter(
       (product) =>
         product.type ===
         productType
     );
+
+  if (productType === "VIP") {
+    const availableProducts = [];
+
+    for (
+      const product of filteredProducts
+    ) {
+      if (
+        await hasActiveVipChannel(
+          env,
+          product.id
+        )
+      ) {
+        availableProducts.push(
+          product
+        );
+      }
+    }
+
+    filteredProducts =
+      availableProducts;
+  }
 
   const buttons =
     filteredProducts.map(
@@ -183,9 +256,6 @@ export async function showProductCategory(
       ]
     );
 
-  /*
-   * Jika kategori kosong.
-   */
   if (
     filteredProducts.length === 0
   ) {
@@ -209,9 +279,6 @@ Belum ada produk tersedia.`,
     );
   }
 
-  /*
-   * Tombol kembali ke menu utama.
-   */
   buttons.push([
     {
       text:
@@ -287,6 +354,31 @@ export async function showProduct(
       chatId,
       messageId,
       "❌ Produk tidak tersedia.",
+      [
+        [
+          {
+            text:
+              settings.btn_back_label,
+            callback_data:
+              "user:menu",
+          },
+        ],
+      ]
+    );
+  }
+
+  if (
+    product.type === "VIP" &&
+    !(await hasActiveVipChannel(
+      env,
+      product.id
+    ))
+  ) {
+    return editMessage(
+      env,
+      chatId,
+      messageId,
+      "❌ Produk VIP ini belum tersedia.",
       [
         [
           {
