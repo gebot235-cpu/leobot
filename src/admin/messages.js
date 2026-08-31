@@ -78,6 +78,20 @@ Terima kasih, {first_name}!
 🔐 Silakan JOIN channel VIP melalui link/tombol di bawah.`,
   },
 
+  payment_success_digital: {
+  name: "✅ PEMBAYARAN DIGITAL BERHASIL",
+  key: "message_payment_success_digital",
+  default:
+`✅ PEMBAYARAN BERHASIL
+
+Terima kasih, {first_name}!
+
+📦 {product_name}
+🧾 Order: #{order_code}
+
+📥 Produk digital kamu sudah dikirim di bawah.`,
+},
+  
   payment_failed: {
     name: "❌ PEMBAYARAN GAGAL",
     key: "message_payment_failed",
@@ -189,6 +203,13 @@ Pilih pesan yang ingin diedit:`,
           text: "⏰ VIP BERAKHIR",
           callback_data:
             "admin:message:vip_expired",
+        },
+      ],
+      [
+        {
+         text: "📥 PEMBAYARAN DIGITAL",
+         callback_data:
+           "admin:message:payment_success_digital",
         },
       ],
       [
