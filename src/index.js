@@ -176,132 +176,208 @@ export default {
   },
 };
 
-async function handleChatMemberUpdate(
-  env,
-  update
-) {
+async function handleChatMemberUpdate(env, update) {
   const chatId =
-    update.chat?.id;
+    update?.chat?.id;
 
   const userId =
-    update.new_chat_member?.user?.id;
+    update?.new_chat_member?.user?.id;
 
   const newStatus =
-    update.new_chat_member?.status;
+    update?.new_chat_member?.status;
 
   const oldStatus =
-    update.old_chat_member?.status;
+    update?.old_chat_member?.status;
 
   if (
-    !chatId ||
-    !userId
+    chatId === undefined ||
+    chatId === null ||
+    userId === undefined ||
+    userId === null
   ) {
     return;
   }
 
   const joined =
-    newStatus === "member" &&
-    oldStatus !== "member";
+    (
+      newStatus === "member" ||
+      newStatus === "administrator"
+    ) &&
+    oldStatus !== "member" &&
+    oldStatus !== "administrator";
 
   if (!joined) {
+    return;
+  }
+
+  const telegramId =
+    Number(userId);
+
+  const channelId =
+    Number(chatId);
+
+  if (
+    !Number.isSafeInteger(telegramId) ||
+    !Number.isSafeInteger(channelId)
+  ) {
     return;
   }
 
   const memberships =
     await supabase(
       env,
-      `vip_memberships?telegram_id=eq.${Number(
-        userId
-      )}&channel_id=eq.${Number(
-        chatId
-      )}&joined_at=is.null&expires_at=is.null&limit=1`
+      `vip_memberships?telegram_id=eq.${telegramId}&channel_id=eq.${channelId}&joined_at=is.null&expires_at=is.null&order=id.desc`
     );
 
-  const membership =
-    memberships?.[0];
-
-  if (!membership) {
+  if (!Array.isArray(memberships) || !memberships.length) {
     return;
   }
 
-  if (!membership.product_id) {
-    console.error(
-      "Membership VIP tidak memiliki product_id:",
-      membership.id
-    );
+  const activated = [];
 
-    return;
-  }
+  for (const membership of memberships) {
+    const membershipId =
+      Number(membership?.id);
 
-  const product =
-    await getProduct(
-      env,
-      membership.product_id
-    );
+    const productId =
+      Number(membership?.product_id);
 
-  if (!product) {
-    console.error(
-      `Produk #${membership.product_id} tidak ditemukan untuk membership #${membership.id}`
-    );
+    const orderId =
+      Number(membership?.order_id);
 
-    return;
-  }
-
-  const durationDays =
-    Number(product.duration_days) || 0;
-
-  if (durationDays <= 0) {
-    console.error(
-      `duration_days tidak valid untuk produk #${product.id}`
-    );
-
-    return;
-  }
-
-  const joinedAt =
-    new Date();
-
-  const expiresAt =
-    new Date(
-      joinedAt.getTime() +
-        durationDays *
-          24 *
-          60 *
-          60 *
-          1000
-    );
-
-  await supabase(
-    env,
-    `vip_memberships?id=eq.${Number(
-      membership.id
-    )}`,
-    "PATCH",
-    {
-      joined_at:
-        joinedAt.toISOString(),
-      expires_at:
-        expiresAt.toISOString(),
+    if (
+      !Number.isSafeInteger(membershipId) ||
+      membershipId <= 0
+    ) {
+      continue;
     }
-  );
 
-  console.log(
-    `VIP aktif: user=${userId}, channel=${chatId}, membership=${membership.id}, expires=${expiresAt.toISOString()}`
-  );
+    if (
+      !Number.isSafeInteger(productId) ||
+      productId <= 0
+    ) {
+      console.error(
+        "Membership VIP tidak memiliki product_id yang valid:",
+        membershipId
+      );
 
-  await sendMessage(
-    env,
-    userId,
-    `✅ VIP berhasil diaktifkan!\n\n` +
-      `📅 Masa aktif: ${durationDays} hari\n` +
-      `⏰ Berlaku sampai: ${expiresAt.toLocaleDateString(
-        "id-ID",
+      continue;
+    }
+
+    const product =
+      await getProduct(
+        env,
+        productId
+      );
+
+    if (!product) {
+      console.error(
+        `Produk #${productId} tidak ditemukan untuk membership #${membershipId}`
+      );
+
+      continue;
+    }
+
+    const durationDays =
+      Number(product.duration_days);
+
+    if (
+      !Number.isFinite(durationDays) ||
+      durationDays <= 0
+    ) {
+      console.error(
+        `duration_days tidak valid untuk produk #${productId}`
+      );
+
+      continue;
+    }
+
+    const joinedAt =
+      new Date();
+
+    const expiresAt =
+      new Date(
+        joinedAt.getTime() +
+          durationDays *
+            24 *
+            60 *
+            60 *
+            1000
+      );
+
+    const updated =
+      await supabase(
+        env,
+        `vip_memberships?id=eq.${membershipId}&telegram_id=eq.${telegramId}&channel_id=eq.${channelId}&joined_at=is.null&expires_at=is.null`,
+        "PATCH",
         {
-          day: "numeric",
-          month: "long",
-          year: "numeric",
+          joined_at:
+            joinedAt.toISOString(),
+          expires_at:
+            expiresAt.toISOString(),
         }
-      )}`
+      );
+
+    if (
+      !Array.isArray(updated) &&
+      updated !== undefined &&
+      updated !== null
+    ) {
+      console.error(
+        `Gagal mengaktifkan membership #${membershipId}`
+      );
+
+      continue;
+    }
+
+    activated.push({
+      membershipId,
+      orderId:
+        Number.isSafeInteger(orderId)
+          ? orderId
+          : null,
+      productName:
+        product.name || "VIP",
+      durationDays,
+      expiresAt,
+    });
+  }
+
+  if (!activated.length) {
+    return;
+  }
+
+  for (const item of activated) {
+    try {
+      await sendMessage(
+        env,
+        telegramId,
+        `✅ VIP berhasil diaktifkan!\n\n` +
+          `📦 ${item.productName}\n` +
+          `📅 Masa aktif: ${item.durationDays} hari\n` +
+          `⏰ Berlaku sampai: ${formatDateId(item.expiresAt)}`
+      );
+    } catch (error) {
+      console.error(
+        `Gagal mengirim notifikasi VIP untuk membership #${item.membershipId}:`,
+        error
+      );
+    }
+
+    console.log(
+      `VIP aktif: user=${telegramId}, channel=${channelId}, membership=${item.membershipId}, order=${item.orderId ?? "-"}, expires=${item.expiresAt.toISOString()}`
+    );
+  }
+}
+
+function formatDateId(date) {
+  return date.toLocaleDateString(
+    "id-ID",
+    {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    }
   );
 }
 
@@ -1629,7 +1705,7 @@ function getRemainingMinutes(
     Math.ceil(
       (expires -
         Date.now()) /
-      60000
+        60000
     );
 
   return Math.max(
