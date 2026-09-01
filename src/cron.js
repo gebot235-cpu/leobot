@@ -106,9 +106,7 @@ env,
 
 let expired = 0;
 
-for (
-const order of rows
-) {
+for (const order of rows) {
 try {
 if (
 order.payment_message_id &&
@@ -180,9 +178,7 @@ env,
 
 let sent = 0;
 
-for (
-const membership of rows
-) {
+for (const membership of rows) {
 try {
 const text =
 "⏰ PENGINGAT\n\n" +
@@ -233,9 +229,7 @@ env,
 
 let kicked = 0;
 
-for (
-const membership of rows
-) {
+for (const membership of rows) {
 try {
 await kickChatMember(
 env,
