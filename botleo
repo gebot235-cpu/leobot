@@ -1,0 +1,13 @@
+name = "leobot"
+main = "src/index.js"
+compatibility_date = "2026-08-29"
+
+[vars]
+ENVIRONMENT = "production"
+
+# Menjalankan cron setiap 10 menit: expire order PENDING yang
+# QR-nya sudah lewat waktu, kirim reminder VIP H-24 jam, dan
+# auto-kick member VIP yang masa aktifnya sudah habis.
+# Sebelumnya tidak ada trigger cron sama sekali di proyek ini.
+[triggers]
+crons = ["*/10 * * * *"]
